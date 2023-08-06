@@ -4,7 +4,8 @@ import fetch from 'isomorphic-unfetch';
 export default async (req, res) => {
 // Add CORS headers to allow cross-origin requests
 res.setHeader('Access-Control-Allow-Credentials', true);
-res.setHeader('Access-Control-Allow-Origin', 'https://fpl-fixture-calendar.vercel.app'); // Replace with your frontend domain - 'http://localhost:3000', 
+res.setHeader('Access-Control-Allow-Origin', ['https://fpl-fixture-calendar.vercel.app', 'http://localhost:3000']);
+ // Add new frontend domains here 
 res.setHeader(
   'Access-Control-Allow-Methods',
   'GET,OPTIONS,PATCH,DELETE,POST,PUT'
