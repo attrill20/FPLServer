@@ -2,6 +2,14 @@
 import fetch from 'isomorphic-unfetch';
 
 export default async (req, res) => {
+// Add CORS headers to allow cross-origin requests
+res.setHeader('Access-Control-Allow-Credentials', true);
+res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // Replace with your frontend domain
+res.setHeader(
+  'Access-Control-Allow-Methods',
+  'GET,OPTIONS,PATCH,DELETE,POST,PUT'
+  );
+
   try {
     const bootstrapResponse = await fetch(
       'https://fantasy.premierleague.com/api/bootstrap-static/'
