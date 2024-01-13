@@ -14,7 +14,7 @@ export default async (req, res) => {
 
 async function scrapeData() {
     const browser = await chromium.launch({
-        executablePath: '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         headless: true,
       });
 
