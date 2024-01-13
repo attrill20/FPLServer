@@ -17,7 +17,11 @@ export default async (req, res) => {
 };
 
 async function scrapeData() {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    // executablePath: '/path/to/chrome', 
+  });
+  
   const page = await browser.newPage();
   
   try {
