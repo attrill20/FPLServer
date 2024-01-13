@@ -1,42 +1,22 @@
-// pages/api/scrapedData.js
-import puppeteer from 'puppeteer';
-
-export default async (req, res) => {
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-
-  try {
-    // Call Puppeteer script to scrape additional data
-    const scrapedData = await scrapeData();
-    res.status(200).json(scrapedData);
-  } catch (error) {
-    console.error('Error fetching scraped data:', error);
-    res.status(500).json({ error: 'Something went wrong' });
-  }
-};
+import { chromium } from 'playwright';
 
 async function scrapeData() {
-    const browser = await puppeteer.launch({
-        headless: false,
-        channel: 'chrome'
-        // executablePath: '/path/to/chrome', // Provide the correct path to Chrome executable
-      });
-      
+  const browser = await chromium.launch({
+    headless: true,
+  });
+
   const page = await browser.newPage();
-  
-  try {
-    await page.goto('https://understat.com/league/EPL');
-    await page.waitForSelector('td.align-right.nowrap');
+  await page.goto('https://understat.com/league/EPL');
+  await page.waitForSelector('td.align-right.nowrap');
 
-    const teamNameElements = await page.$$('#league-chemp tbody tr td:nth-child(2) a');
-    const xGElements = await page.$$('td.align-right.nowrap');
-    
-    const xG = [];
-    const xGA = [];
+  const teamNameElements = await page.$$('#league-chemp tbody tr td:nth-child(2) a');
+  const xGElements = await page.$$('td.align-right.nowrap');
 
-    for (let index = 0; index < teamNameElements.length; index++) {
-      const teamName = await page.evaluate(el => el.innerText, teamNameElements[index]);
+  const xG = [];
+  const xGA = [];
+
+  for (let index = 0; index < teamNameElements.length; index++) {
+    const teamName = await page.evaluate(el => el.innerText, teamNameElements[index]);
 
       // Initialize xGParsedValue and xGAParsedValue
       let xGParsedValue = null;
@@ -74,20 +54,16 @@ async function scrapeData() {
     }
 
     const finalOutput = xG.map((team, index) => ({
-      teamName: team.teamName,
-      xG: team.xG,
-      xGA: xGA[index].xGA,
-    }));
-
-    console.log("Final Output:", finalOutput);
-
-    return finalOutput;
-  } catch (error) {
-    console.log('Error scraping data from the website:', error);
-    return null;
-  } finally {
-    await browser.close();
-  }
-}
-
-scrapeData();
+        teamName: team.teamName,
+        xG: team.xG,
+        xGA: xGA[index].xGA,
+      }));
+    
+      console.log('Final Output:', finalOutput);
+    
+      await browser.close();
+    
+      return finalOutput;
+    }
+    
+    scrapeData();
