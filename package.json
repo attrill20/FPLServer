@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npx playwright install && node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/index.js",
-    "scrape": "npx playwright install && node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.js"
+    "scrape": "npx playwright install && node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.js",
+    "install": "npx playwright install"
   },
   "keywords": [],
   "author": "",
