@@ -19,6 +19,7 @@ export default async (req, res) => {
 async function scrapeData() {
     const browser = await puppeteer.launch({
         headless: false,
+        channel: 'chrome'
         // executablePath: '/path/to/chrome', // Provide the correct path to Chrome executable
       });
       
