@@ -1,5 +1,17 @@
 import { chromium } from 'playwright';
 
+export default async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+  
+    try {
+      const scrapedData = await scrapeData(); // Make sure to use 'await' here
+      res.status(200).json(scrapedData);
+    } catch (error) {
+      console.error('Error fetching scraped data:', error);
+      res.status(500).json({ error: 'Something went wrong' });
+    }
+  };
+
 async function scrapeData() {
   const browser = await chromium.launch({
     headless: true,
