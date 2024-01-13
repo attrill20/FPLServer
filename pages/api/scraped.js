@@ -4,7 +4,7 @@ export default async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
   
     try {
-      const scrapedData = await scrapeData(); // Make sure to use 'await' here
+      const scrapedData = await scrapeData(); 
       res.status(200).json(scrapedData);
     } catch (error) {
       console.error('Error fetching scraped data:', error);
@@ -14,6 +14,7 @@ export default async (req, res) => {
 
 async function scrapeData() {
   const browser = await chromium.launch({
+    executablePath: '/home/sbx_user1051/.cache/ms-playwright/chromium-1091/chrome-linux/chrome',
     headless: true,
   });
 
