@@ -5,11 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node api/index.js"
-  },
+    "start": "node --experimental-specifier-resolution=node --loader ts-node/esm .pages/api/index.js",
+    "scrape": "node --experimental-specifier-resolution=node --loader ts-node/esm .pages/api/scraped.js"
+  },  
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
@@ -17,5 +19,8 @@
     "next": "^13.4.12",
     "node-fetch": "^3.3.1",
     "puppeteer": "^21.7.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }
