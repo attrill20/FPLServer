@@ -14,7 +14,8 @@ export default async (req, res) => {
 
 async function scrapeData() {
   const browser = await chromium.launch({
-    executablePath: '/home/sbx_user1051/.cache/ms-playwright/chromium-1091/chrome-linux/chrome',
+    // executablePath: '/home/sbx_user1051/.cache/ms-playwright/chromium-1091/chrome-linux/chrome',
+    channel: chrome,
     headless: true,
   });
 
