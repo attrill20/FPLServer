@@ -13,11 +13,10 @@ export default async (req, res) => {
   };
 
 async function scrapeData() {
-  const browser = await chromium.launch({
-    // executablePath: '/home/sbx_user1051/.cache/ms-playwright/chromium-1091/chrome-linux/chrome',
-    channel: 'chrome',
-    headless: true,
-  });
+    const browser = await chromium.launch({
+        executablePath: '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        headless: true,
+      });
 
   const page = await browser.newPage();
   await page.goto('https://understat.com/league/EPL');
