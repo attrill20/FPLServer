@@ -17,11 +17,11 @@ export default async (req, res) => {
 };
 
 async function scrapeData() {
-  const browser = await puppeteer.launch({
-    headless: true,
-    // executablePath: '/path/to/chrome', 
-  });
-  
+    const browser = await puppeteer.launch({
+        headless: false,
+        // executablePath: '/path/to/chrome', // Provide the correct path to Chrome executable
+      });
+      
   const page = await browser.newPage();
   
   try {
@@ -77,6 +77,8 @@ async function scrapeData() {
       xG: team.xG,
       xGA: xGA[index].xGA,
     }));
+
+    console.log("Final Output:", finalOutput);
 
     return finalOutput;
   } catch (error) {
