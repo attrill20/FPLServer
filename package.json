@@ -2,24 +2,23 @@
   "name": "fpl-fixtures",
   "version": "1.0.0",
   "description": "FPL Server",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx playwright install && node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/index.js",
-    "scrape": "npx playwright install && node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.js",
-    "install": "npx playwright install"
+    "start": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/index.js",
+    "scrape": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "chrome-aws-lambda": "^10.1.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "isomorphic-unfetch": "^4.0.2",
     "next": "^14.0.4",
     "node-fetch": "^3.3.1",
-    "playwright": "^1.40.1"
+    "puppeteer-core": "^10.1.0"
   },
   "devDependencies": {
     "ts-node": "^10.9.2"
