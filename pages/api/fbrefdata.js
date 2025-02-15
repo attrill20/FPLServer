@@ -12,25 +12,43 @@ export default async function handler(req, res) {
 
   try {
     const url = "https://fbref.com/en/comps/9/Premier-League-Stats";
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+
     const html = await response.text();
 
     const $ = cheerio.load(html);
-    const xgData = [];
+    const xgDataMap = new Map();
 
-    $("#stats_squads_standard tbody tr").each((index, element) => {
-      const team = $(element).find("th[data-stat='team']").text().trim();
-      const xG = $(element).find("td[data-stat='xg_for']").text().trim();
-      const xGA = $(element).find("td[data-stat='xg_against']").text().trim();
+    $("table.stats_table tbody tr").each((index, element) => {
+      let team = $(element).find("th[data-stat='team']").text().trim();
+      const xG = parseFloat($(element).find("td.right.group_start[data-stat='xg']").text().trim()) || 0;
+      const xGC = parseFloat($(element).find("td.right.modified.group_start[data-stat='xg']").text().trim()) || 0;
+
+      // Remove "vs " prefix if it exists
+      if (team.startsWith("vs ")) {
+        team = team.slice(3).trim();
+      }
 
       if (team) {
-        xgData.push({
-          team,
-          xG: parseFloat(xG) || 0,
-          xGA: parseFloat(xGA) || 0,
-        });
+        if (xgDataMap.has(team)) {
+          const existingData = xgDataMap.get(team);
+          xgDataMap.set(team, {
+            team,
+            xG: existingData.xG || xG,
+            xGC: existingData.xGC || xGC,
+          });
+        } else {
+          xgDataMap.set(team, { team, xG, xGC });
+        }
       }
     });
+
+    const xgData = Array.from(xgDataMap.values());
 
     return res.status(200).json(xgData);
   } catch (error) {

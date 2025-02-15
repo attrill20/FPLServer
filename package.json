@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "FPL Server",
   "scripts": {
+    "dev": "next dev",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/index.js",
     "scrape": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.mjs"
