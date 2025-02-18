@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       // Overall Team Stats
       const xg = parseFloat($(element).find("td.right.group_start[data-stat='xg']").text().trim()) || 0;
       const xgc = parseFloat($(element).find("td.right.modified.group_start[data-stat='xg']").text().trim()) || 0;
-      const xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='xg_diff']").text().trim().replace(/[+-]/g, "")) || 0;
+      const xg_diff = parseFloat($(element).find("td[data-stat='xg_diff']").text().trim().replace(/[+-]/g, "")) || 0;
       // const xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='xg_diff_per90']").text().trim().replace(/[+-]/g, "")) || 0;
 
       // Home Stats
