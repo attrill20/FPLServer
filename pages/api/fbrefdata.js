@@ -22,6 +22,9 @@ export default async function handler(req, res) {
     const html = await response.text();
 
     const $ = cheerio.load(html);
+
+    console.log($("#results2024-202591_home_away").length ? "✅ Table found!" : "❌ Table NOT found!");
+
     const xgDataMap = new Map();
 
      // Scrape the main stats table
