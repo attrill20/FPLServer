@@ -24,8 +24,12 @@ export default async function handler(req, res) {
     const $ = cheerio.load(html);
     const xgDataMap = new Map();
 
+     // Scrape the main stats table
     $("table.stats_table tbody tr").each((index, element) => {
       let team = $(element).find("th[data-stat='team']").text().trim();
+       if (team.startsWith("vs ")) {
+        team = team.slice(3).trim();   // Remove "vs " prefix if it exists
+      }
       
       // Overall Team Stats
       const xg = parseFloat($(element).find("td.right.group_start[data-stat='xg']").text().trim()) || 0;
@@ -34,7 +38,7 @@ export default async function handler(req, res) {
       // const xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='xg_diff_per90']").text().trim().replace(/[+-]/g, "")) || 0;
 
       // Home Stats
-      const home_points_avg = parseFloat($(element).find("td.right.group_start[data-stat='home_points_avg']").text().trim()) || 0;
+      // const home_points_avg = parseFloat($(element).find("td.right.group_start[data-stat='home_points_avg']").text().trim()) || 0;
       // const home_xg = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_for']").text().trim()) || 0;
       // const home_xgc = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_against']").text().trim()) || 0;
       // const home_xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_diff']").text().trim()) || 0;
@@ -47,11 +51,6 @@ export default async function handler(req, res) {
       // const away_xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_diff']").text().trim()) || 0;
       // const away_xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_diff_per90']").text().trim()) || 0;
 
-      // Remove "vs " prefix if it exists
-      if (team.startsWith("vs ")) {
-        team = team.slice(3).trim();
-      }
-
       if (team) {
         if (xgDataMap.has(team)) {
           const existingData = xgDataMap.get(team);
@@ -61,7 +60,7 @@ export default async function handler(req, res) {
             xgc: existingData.xgc || xgc,
             // xg_diff: existingData.xg_diff || xg_diff,
             // xg_diff_per90: existingData.xg_diff_per90 || xg_diff_per90,
-            home_points_avg: existingData.home_points_avg || home_points_avg,
+            home_points_avg: 0,
             // home_xg: existingData.home_xg || home_xg,
             // home_xgc: existingData.home_xgc || home_xgc,
             // home_xg_diff: existingData.home_xg_diff || home_xg_diff,
@@ -83,7 +82,7 @@ export default async function handler(req, res) {
             // home_xgc,
             // home_xg_diff,
             // home_xg_diff_per90,
-            home_points_avg,
+            home_points_avg : 0,
             // away_xg,
             // away_xgc,
             // away_xg_diff,
@@ -91,6 +90,20 @@ export default async function handler(req, res) {
             // away_points_avg,
           });
         }
+      }
+    });
+
+    // Scrape the home/away table
+    $("#results2024-202591_home_away tbody tr").each((index, element) => {
+      let team = $(element).find("th[data-stat='team']").text().trim();
+
+      const home_points_avg = parseFloat($(element).find("td[data-stat='home_points_avg']").text().trim()) || 0;
+
+      if (team && xgDataMap.has(team)) {
+        let existingData = xgDataMap.get(team);
+        existingData.home_points_avg = home_points_avg; 
+        
+        xgDataMap.set(team, existingData);
       }
     });
 
