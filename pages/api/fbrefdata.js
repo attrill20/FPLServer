@@ -95,6 +95,7 @@ export default async function handler(req, res) {
 
     // Scrape the home/away table
     $("#results2024-202591_home_away tbody tr").each((index, element) => {
+      console.log($(element).html()); // Check the raw HTML
       let team = $(element).find("th[data-stat='team']").text().trim();
 
       const home_points_avg = parseFloat($(element).find("td.right[data-stat='home_points_avg']").text().trim()) || 0;
