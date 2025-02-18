@@ -31,21 +31,21 @@ export default async function handler(req, res) {
       const xg = parseFloat($(element).find("td.right.group_start[data-stat='xg']").text().trim()) || 0;
       const xgc = parseFloat($(element).find("td.right.modified.group_start[data-stat='xg']").text().trim()) || 0;
       const xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='xg_diff']").text().trim().replace(/[+-]/g, "")) || 0;
-      const xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='xg_diff_per90']").text().trim().replace(/[+-]/g, "")) || 0;
+      // const xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='xg_diff_per90']").text().trim().replace(/[+-]/g, "")) || 0;
 
       // Home Stats
-      const home_points_avg = parseFloat($(element).find("td.right.group_start[data-stat='home_points_avg']").text().trim()) || 0;
-      const home_xg = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_for']").text().trim()) || 0;
-      const home_xgc = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_against']").text().trim()) || 0;
-      const home_xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_diff']").text().trim()) || 0;
-      const home_xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_diff_per90']").text().trim()) || 0;
+      // const home_points_avg = parseFloat($(element).find("td.right.group_start[data-stat='home_points_avg']").text().trim()) || 0;
+      // const home_xg = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_for']").text().trim()) || 0;
+      // const home_xgc = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_against']").text().trim()) || 0;
+      // const home_xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_diff']").text().trim()) || 0;
+      // const home_xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='home_xg_diff_per90']").text().trim()) || 0;
 
       // Away Stats
-      const away_points_avg = parseFloat($(element).find("td.right.group_start[data-stat='away_points_avg']").text().trim()) || 0;
-      const away_xg = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_for']").text().trim()) || 0;
-      const away_xgc = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_against']").text().trim()) || 0;
-      const away_xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_diff']").text().trim()) || 0;
-      const away_xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_diff_per90']").text().trim()) || 0;
+      // const away_points_avg = parseFloat($(element).find("td.right.group_start[data-stat='away_points_avg']").text().trim()) || 0;
+      // const away_xg = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_for']").text().trim()) || 0;
+      // const away_xgc = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_against']").text().trim()) || 0;
+      // const away_xg_diff = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_diff']").text().trim()) || 0;
+      // const away_xg_diff_per90 = parseFloat($(element).find("td.right.group_start[data-stat='away_xg_diff_per90']").text().trim()) || 0;
 
       // Remove "vs " prefix if it exists
       if (team.startsWith("vs ")) {
@@ -60,17 +60,17 @@ export default async function handler(req, res) {
             xg: existingData.xg || xg,
             xgc: existingData.xgc || xgc,
             xg_diff: existingData.xg_diff || xg_diff,
-            xg_diff_per90: existingData.xg_diff_per90 || xg_diff_per90,
-            home_points_avg: existingData.home_points_avg || home_points_avg,
-            home_xg: existingData.home_xg || home_xg,
-            home_xgc: existingData.home_xgc || home_xgc,
-            home_xg_diff: existingData.home_xg_diff || home_xg_diff,
-            home_xg_diff_per90: existingData.home_xg_diff_per90 || home_xg_diff_per90,
-            away_xg: existingData.away_xg || away_xg,
-            away_xgc: existingData.away_xgc || away_xgc,
-            away_xg_diff: existingData.away_xg_diff || away_xg_diff,
-            away_xg_diff_per90: existingData.away_xg_diff_per90 || away_xg_diff_per90,
-            away_points_avg: existingData.away_points_avg || away_points_avg,
+            // xg_diff_per90: existingData.xg_diff_per90 || xg_diff_per90,
+            // home_points_avg: existingData.home_points_avg || home_points_avg,
+            // home_xg: existingData.home_xg || home_xg,
+            // home_xgc: existingData.home_xgc || home_xgc,
+            // home_xg_diff: existingData.home_xg_diff || home_xg_diff,
+            // home_xg_diff_per90: existingData.home_xg_diff_per90 || home_xg_diff_per90,
+            // away_xg: existingData.away_xg || away_xg,
+            // away_xgc: existingData.away_xgc || away_xgc,
+            // away_xg_diff: existingData.away_xg_diff || away_xg_diff,
+            // away_xg_diff_per90: existingData.away_xg_diff_per90 || away_xg_diff_per90,
+            // away_points_avg: existingData.away_points_avg || away_points_avg,
           });
         } else {
           xgDataMap.set(team, {
@@ -78,17 +78,17 @@ export default async function handler(req, res) {
             xg,
             xgc,
             xg_diff,
-            xg_diff_per90,
-            home_xg,
-            home_xgc,
-            home_xg_diff,
-            home_xg_diff_per90,
-            home_points_avg,
-            away_xg,
-            away_xgc,
-            away_xg_diff,
-            away_xg_diff_per90,
-            away_points_avg,
+            // xg_diff_per90,
+            // home_xg,
+            // home_xgc,
+            // home_xg_diff,
+            // home_xg_diff_per90,
+            // home_points_avg,
+            // away_xg,
+            // away_xgc,
+            // away_xg_diff,
+            // away_xg_diff_per90,
+            // away_points_avg,
           });
         }
       }
