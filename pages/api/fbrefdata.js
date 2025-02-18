@@ -97,7 +97,7 @@ export default async function handler(req, res) {
     $("#results2024-202591_home_away tbody tr").each((index, element) => {
       let team = $(element).find("th[data-stat='team']").text().trim();
 
-      const home_points_avg = parseFloat($(element).find("td[data-stat='home_points_avg']").text().trim()) || 0;
+      const home_points_avg = parseFloat($(element).find("td.right[data-stat='home_points_avg']").text().trim()) || 0;
 
       if (team && xgDataMap.has(team)) {
         let existingData = xgDataMap.get(team);
