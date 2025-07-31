@@ -12,16 +12,22 @@ export default async (req, res) => {
   console.log('Received request:', req.method, req.url); // Log the request method and URL
 
   if (req.method === 'GET') {
-    const { endpoint } = req.query;
+    const { endpoint, playerId } = req.query;
     console.log('Endpoint requested:', endpoint); // Log the requested endpoint
 
     try {
       let responseData;
+      let apiUrl;
+
+      // Handle element-summary endpoint with player ID
+      if (endpoint === 'element-summary' && playerId) {
+        apiUrl = `https://fantasy.premierleague.com/api/element-summary/${playerId}/`;
+      } else {
+        apiUrl = `https://fantasy.premierleague.com/api/${endpoint}`;
+      }
 
       // Fetch data based on the specified endpoint
-      const response = await fetch(
-        `https://fantasy.premierleague.com/api/${endpoint}`
-      );
+      const response = await fetch(apiUrl);
 
       // Check if the response is okay
       if (!response.ok) {
