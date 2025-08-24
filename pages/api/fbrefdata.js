@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     const $ = cheerio.load(html);
 
-    console.log($("#results2024-202591_home_away").length ? "✅ Table found!" : "❌ Table NOT found!");
+    console.log($("#results2025-202691_home_away").length ? "✅ Table found!" : "❌ Table NOT found!");
 
     const xgDataMap = new Map();
 
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
     });
 
     // Scrape the home/away table
-    $("#results2024-202591_home_away tbody tr").each((index, element) => {
+    $("#results2025-202691_home_away tbody tr").each((index, element) => {
       console.log($(element).html()); // Check the raw HTML
       let team = $(element).find("th[data-stat='team']").text().trim();
 
