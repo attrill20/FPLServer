@@ -23,13 +23,16 @@ export default async function handler(req, res) {
 
     const $ = cheerio.load(html);
 
-    const homeAwayTable = $('table[id^="results"][id$="_home_away"]');
+    const squadsStandardForTable = $('#all_stats_squads_standard_for .stats_table');
+    const homeAwayTable = $('#all_results_home_away .stats_table');
+
+    console.log(squadsStandardForTable.length ? "✅ Main Stats Table found!" : "❌ Main Stats Table NOT found!");
     console.log(homeAwayTable.length ? "✅ Home/Away Table found!" : "❌ Home/Away Table NOT found!");
 
     const xgDataMap = new Map();
 
     // Scrape the main stats table
-    $('#stats_squads_standard_for tbody tr').each((index, element) => {
+    squadsStandardForTable.find('tbody tr').each((index, element) => {
       let team = $(element).find("th[data-stat='team'] a").text().trim();
       if (team.startsWith("vs ")) {
         team = team.slice(3).trim(); // Remove "vs " prefix if it exists
