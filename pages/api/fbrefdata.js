@@ -70,6 +70,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json(xgData);
   } catch (error) {
+    console.log("Error in try block:", error);
     console.error("Error fetching xG data:", error);
     return res.status(500).json({ error: "Failed to fetch xG data" });
   }
