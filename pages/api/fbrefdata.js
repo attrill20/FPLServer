@@ -1,4 +1,5 @@
-import fetch from "isomorphic-unfetch";
+import puppeteer from 'puppeteer-core';
+import chrome from 'chrome-aws-lambda';
 import * as cheerio from "cheerio";
 
 export default async function handler(req, res) {
@@ -11,15 +12,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = "https://fbref.com/en/comps/9/Premier-League-Stats";
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
+    const browser = await puppeteer.launch({
+      args: chrome.args,
+      executablePath: await chrome.executablePath,
+      headless: chrome.headless,
     });
+    const page = await browser.newPage();
 
-    const html = await response.text();
+    const url = "https://fbref.com/en/comps/9/Premier-League-Stats";
+    await page.goto(url, { waitUntil: 'networkidle0' });
+
+    const html = await page.content();
+
+    await browser.close();
 
     const $ = cheerio.load(html);
 
@@ -65,8 +70,6 @@ export default async function handler(req, res) {
     });
 
     const xgData = Array.from(xgDataMap.values());
-
-    console.log("Scraped xG Data:", xgData);
 
     return res.status(200).json(xgData);
   } catch (error) {

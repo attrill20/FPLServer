@@ -6,13 +6,15 @@
     "dev": "next dev",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/index.js",
-    "scrape": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.mjs"
+    "scrape": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.mjs",
+    "sync:initial": "node ../scripts/sync-current-season.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@supabase/supabase-js": "^2.90.1",
     "cheerio": "^1.0.0",
     "chrome-aws-lambda": "^10.1.0",
     "cors": "^2.8.5",
