@@ -99,13 +99,22 @@ export default async function handler(req, res) {
         season_id: currentSeason.id,
         gameweek_calculated: currentGW.id,
         games_played: team.games_played || 0,
+        // All factor scores (0-100)
         goals_per_90_score: team.goals_per_90_score || 0,
         goals_conceded_per_90_score: team.goals_conceded_per_90_score || 0,
         xg_per_90_score: team.xg_per_90_score || 0,
         xgc_per_90_score: team.xgc_per_90_score || 0,
+        home_goals_per_90_score: team.home_goals_per_90_score || 0,
+        home_xg_per_90_score: team.home_xg_per_90_score || 0,
+        away_goals_per_90_score: team.away_goals_per_90_score || 0,
+        away_xg_per_90_score: team.away_xg_per_90_score || 0,
         recent_form_score: team.recent_form_score || 0,
+        ppg_score: team.ppg_score || 0,
+        goals_vs_xg_score: team.goals_vs_xg_score || 0,
+        // Strength scores (0-100)
         home_strength_score: team.home_strength_score || 0,
         away_strength_score: team.away_strength_score || 0,
+        // Final ratings (1-10)
         home_difficulty: team.home_difficulty || 5,
         away_difficulty: team.away_difficulty || 5,
         calculation_timestamp: new Date().toISOString()

@@ -123,6 +123,10 @@ export default async function handler(req, res) {
         ppg: parseFloat(calculation.ppg_score || 0),
         goals_vs_xg: parseFloat(calculation.goals_vs_xg_score || 0)
       },
+      raw_values: {
+        description: 'Non-normalized values for reference',
+        note: 'These are the actual stats before normalization to 0-100 scale'
+      },
       scores: {
         home_strength: parseFloat(calculation.home_strength_score || 0),
         away_strength: parseFloat(calculation.away_strength_score || 0),
