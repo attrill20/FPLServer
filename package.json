@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/index.js",
     "scrape": "node --experimental-specifier-resolution=node --loader ts-node/esm pages/api/scraped.mjs",
-    "sync:initial": "node ../scripts/sync-current-season.js"
+    "sync:initial": "node scripts/sync-current-season.js"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +18,7 @@
     "cheerio": "^1.0.0",
     "chrome-aws-lambda": "^10.1.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.21.2",
     "isomorphic-unfetch": "^4.0.2",
     "next": "^14.0.4",

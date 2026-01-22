@@ -4,6 +4,12 @@
         "source": "/api/(.*)",
         "destination": "/api/$1"
       }
+    ],
+    "crons": [
+      {
+        "path": "/api/fdr/calculate",
+        "schedule": "0 2 * * *"
+      }
     ]
   }
   
