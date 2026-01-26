@@ -14,7 +14,7 @@ jobs:
       - name: Trigger FPL Data Sync
         run: |
           echo "Triggering sync at $(date)"
-          RESPONSE=$(curl -X POST https://fpl-server-nine.vercel.app/api/sync/trigger \
+          RESPONSE=$(curl -X POST https://fpl-server-dbly.vercel.app/api/sync/trigger \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
             -H "Content-Type: application/json" \
             -w "\nHTTP_STATUS:%{http_code}" \
