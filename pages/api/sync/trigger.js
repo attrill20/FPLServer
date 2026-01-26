@@ -34,7 +34,26 @@ export default async function handler(req, res) {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const baseUrl = `${protocol}://${host}`;
 
-    console.log('⚡ Triggering QUICK sync (recent players + FDR)...');
+    console.log('⚡ Triggering QUICK sync (players + stats + FDR)...');
+
+    // Step 0: Sync players table first (adds new players, avoids foreign key errors)
+    console.log('👥 Syncing players table...');
+    const playersUrl = `${baseUrl}/api/sync/players`;
+    const playersResponse = await fetch(playersUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`
+      }
+    });
+
+    const playersResult = await playersResponse.json();
+
+    if (!playersResponse.ok) {
+      console.warn('⚠ Players sync failed:', playersResult.message);
+      // Continue anyway - most players probably exist
+    } else {
+      console.log(`✓ Players sync complete (${playersResult.stats?.added || 0} added, ${playersResult.stats?.updated || 0} updated)`);
+    }
 
     // Step 1: Call the quick-stats sync endpoint (recent players only)
     const syncUrl = `${baseUrl}/api/sync/quick-stats`;
@@ -76,6 +95,7 @@ export default async function handler(req, res) {
       success: true,
       triggered: true,
       triggered_at: new Date().toISOString(),
+      players_result: playersResult,
       sync_result: syncResult,
       fdr_result: fdrResult
     });

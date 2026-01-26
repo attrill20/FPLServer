@@ -23,12 +23,19 @@ The original `/api/sync/live-gameweek` endpoint was timing out because it tried 
 ## Data Flow
 
 ```
-FPL API (element-summary)
+FPL API (bootstrap-static + element-summary)
          ↓
-   Sync Endpoints (quick or full)
+Step 0: /api/sync/players
+         ↓
+    players table
+  (adds new mid-season transfers)
+         ↓
+Step 1: Sync Endpoints (quick or full)
          ↓
 player_gameweek_stats table
   (xG, xGC, goals, assists, etc.)
+         ↓
+Step 2: /api/fdr/calculate
          ↓
 SQL Functions (get_team_xg_stats, etc.)
   (aggregate player stats → team totals)
@@ -57,7 +64,13 @@ SQL Functions (get_team_xg_stats, etc.)
 
 ### `/api/sync/trigger` (Main entry point)
 - Called by GitHub Actions hourly
-- Orchestrates: quick-stats → fdr/calculate
+- Orchestrates: players → quick-stats → fdr/calculate
+- Auth: `ADMIN_TOKEN`
+
+### `/api/sync/players` (NEW)
+- Syncs players table from bootstrap-static
+- Adds new mid-season transfers
+- Fast: ~2-5 seconds
 - Auth: `ADMIN_TOKEN`
 
 ### `/api/sync/quick-stats` (NEW)
