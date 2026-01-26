@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
   try {
     // Step 1: Get current gameweek from Supabase
-    const { data: currentGW, error: gwError } = await supabase
+    let { data: currentGW, error: gwError } = await supabase
       .from('gameweeks')
       .select('id, name, finished')
       .eq('is_current', true)
@@ -57,13 +57,40 @@ export default async function handler(req, res) {
       });
     }
 
-    // Don't sync if gameweek is already finished
+    // Step 1b: If current gameweek is finished, advance to next gameweek
     if (currentGW.finished) {
-      console.log(`ℹ️  ${currentGW.name} is already finished`);
-      return res.status(200).json({
-        success: true,
-        message: `${currentGW.name} is finished - no sync needed`
-      });
+      console.log(`📢 ${currentGW.name} is finished - advancing to next gameweek...`);
+
+      // Find next gameweek
+      const { data: nextGW, error: nextError } = await supabase
+        .from('gameweeks')
+        .select('id, name, finished')
+        .gt('id', currentGW.id)
+        .order('id', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (nextError || !nextGW) {
+        console.log('ℹ️  No next gameweek found - season may be over');
+        return res.status(200).json({
+          success: true,
+          message: `${currentGW.name} is finished and no next gameweek exists`
+        });
+      }
+
+      // Update gameweeks: mark old as not current, new as current
+      await supabase
+        .from('gameweeks')
+        .update({ is_current: false })
+        .eq('id', currentGW.id);
+
+      await supabase
+        .from('gameweeks')
+        .update({ is_current: true })
+        .eq('id', nextGW.id);
+
+      console.log(`✓ Advancing: ${currentGW.name} → ${nextGW.name}`);
+      currentGW = nextGW; // Use next gameweek for sync
     }
 
     console.log(`📊 Syncing ${currentGW.name} (ID: ${currentGW.id})...`);

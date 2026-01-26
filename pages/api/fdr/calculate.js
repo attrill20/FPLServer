@@ -54,6 +54,42 @@ export default async function handler(req, res) {
   const startTime = Date.now();
 
   try {
+    // Step 0: Check staleness (skip if data is fresh)
+    const { data: currentGW } = await supabase
+      .from('gameweeks')
+      .select('id')
+      .eq('is_current', true)
+      .single();
+
+    const { data: lastCalc } = await supabase
+      .from('team_fdr_calculations')
+      .select('calculation_timestamp, gameweek_calculated')
+      .order('calculation_timestamp', { ascending: false })
+      .limit(1)
+      .single();
+
+    const ONE_HOUR = 60 * 60 * 1000;
+    const now = Date.now();
+    const lastCalcTime = lastCalc ? new Date(lastCalc.calculation_timestamp).getTime() : 0;
+    const timeSinceLastCalc = now - lastCalcTime;
+
+    const isStale = !lastCalc ||
+                    lastCalc.gameweek_calculated !== currentGW?.id ||
+                    timeSinceLastCalc > ONE_HOUR;
+
+    if (!isStale) {
+      console.log(`⏭️  FDR is up to date (last calculated ${Math.round(timeSinceLastCalc / 60000)} minutes ago)`);
+      return res.status(200).json({
+        success: true,
+        message: 'FDR is up to date',
+        skipped: true,
+        last_calculation: lastCalc.calculation_timestamp,
+        minutes_since_update: Math.round(timeSinceLastCalc / 60000)
+      });
+    }
+
+    console.log(`  ℹ️  Data is stale (${Math.round(timeSinceLastCalc / 60000)} minutes old), recalculating...`);
+
     // Step 1: Calculate FDR using SQL function
     console.log('  → Running calculate_team_fdr() function...');
     const { data: fdrResults, error: calcError } = await supabase
@@ -99,22 +135,12 @@ export default async function handler(req, res) {
         season_id: currentSeason.id,
         gameweek_calculated: currentGW.id,
         games_played: team.games_played || 0,
-        // All factor scores (0-100)
-        goals_per_90_score: team.goals_per_90_score || 0,
-        goals_conceded_per_90_score: team.goals_conceded_per_90_score || 0,
-        xg_per_90_score: team.xg_per_90_score || 0,
-        xgc_per_90_score: team.xgc_per_90_score || 0,
-        home_goals_per_90_score: team.home_goals_per_90_score || 0,
-        home_xg_per_90_score: team.home_xg_per_90_score || 0,
-        away_goals_per_90_score: team.away_goals_per_90_score || 0,
-        away_xg_per_90_score: team.away_xg_per_90_score || 0,
-        recent_form_score: team.recent_form_score || 0,
-        ppg_score: team.ppg_score || 0,
-        goals_vs_xg_score: team.goals_vs_xg_score || 0,
-        // Strength scores (0-100)
-        home_strength_score: team.home_strength_score || 0,
-        away_strength_score: team.away_strength_score || 0,
-        // Final ratings (1-10)
+        // Simplified metrics: goals scored only (home/away split)
+        home_goals_scored_per_90: team.home_goals_scored_per_90 || 0,
+        home_goals_scored_per_90_score: team.home_goals_scored_per_90_score || 5,
+        away_goals_scored_per_90: team.away_goals_scored_per_90 || 0,
+        away_goals_scored_per_90_score: team.away_goals_scored_per_90_score || 5,
+        // Final ratings (1-10) - currently same as goals scores
         home_difficulty: team.home_difficulty || 5,
         away_difficulty: team.away_difficulty || 5,
         calculation_timestamp: new Date().toISOString()
@@ -123,7 +149,7 @@ export default async function handler(req, res) {
       const { error: insertError } = await supabase
         .from('team_fdr_calculations')
         .upsert(calculationRecords, {
-          onConflict: 'team_id,gameweek_calculated'
+          onConflict: 'team_id' // Changed: now one row per team (not per gameweek)
         });
 
       if (insertError) {
@@ -131,6 +157,51 @@ export default async function handler(req, res) {
         // Don't fail the whole operation - ratings can still be updated
       } else {
         console.log(`  ✓ Stored ${calculationRecords.length} calculation records`);
+      }
+
+      // Step 3.5: Validate all 20 teams present and backfill if needed
+      console.log('  → Validating 20 teams present...');
+      const { data: allTeams } = await supabase
+        .from('teams')
+        .select('id')
+        .order('id')
+        .limit(20);
+
+      const { data: calculatedTeams } = await supabase
+        .from('team_fdr_calculations')
+        .select('team_id');
+
+      const missingTeams = allTeams.filter(t =>
+        !calculatedTeams.find(c => c.team_id === t.id)
+      );
+
+      if (missingTeams.length > 0) {
+        console.log(`  ⚠ Backfilling ${missingTeams.length} missing teams with default values`);
+        const backfillRecords = missingTeams.map(t => ({
+          team_id: t.id,
+          season_id: currentSeason.id,
+          gameweek_calculated: currentGW.id,
+          games_played: 0,
+          home_goals_scored_per_90: 0,
+          home_goals_scored_per_90_score: 5,
+          away_goals_scored_per_90: 0,
+          away_goals_scored_per_90_score: 5,
+          home_difficulty: 5,
+          away_difficulty: 5,
+          calculation_timestamp: new Date().toISOString()
+        }));
+
+        const { error: backfillError } = await supabase
+          .from('team_fdr_calculations')
+          .upsert(backfillRecords, { onConflict: 'team_id' });
+
+        if (backfillError) {
+          console.error('  ⚠ Backfill failed:', backfillError.message);
+        } else {
+          console.log(`  ✓ Backfilled ${missingTeams.length} teams`);
+        }
+      } else {
+        console.log(`  ✓ All 20 teams present`);
       }
     }
 
@@ -157,9 +228,9 @@ export default async function handler(req, res) {
 
     // Log some example ratings for verification
     const topTeams = fdrResults.slice(0, 3);
-    console.log('   Sample ratings (top 3 by home strength):');
+    console.log('   Sample ratings (top 3 by home goals per 90):');
     topTeams.forEach(team => {
-      console.log(`   - ${team.team_name}: Home=${team.home_difficulty}, Away=${team.away_difficulty}`);
+      console.log(`   - ${team.team_name}: Home ${team.home_goals_scored_per_90}/90 (rating ${team.home_difficulty}), Away ${team.away_goals_scored_per_90}/90 (rating ${team.away_difficulty})`);
     });
 
     return res.status(200).json({
@@ -172,10 +243,11 @@ export default async function handler(req, res) {
       },
       sample_ratings: topTeams.map(t => ({
         team: t.team_name,
+        games_played: t.games_played,
+        home_goals_per_90: t.home_goals_scored_per_90,
         home_difficulty: t.home_difficulty,
-        away_difficulty: t.away_difficulty,
-        home_strength: t.home_strength_score,
-        games_played: t.games_played
+        away_goals_per_90: t.away_goals_scored_per_90,
+        away_difficulty: t.away_difficulty
       }))
     });
 

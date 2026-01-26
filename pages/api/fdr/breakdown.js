@@ -80,17 +80,6 @@ export default async function handler(req, res) {
       throw new Error(`Failed to fetch team: ${teamError.message}`);
     }
 
-    // Get active weighting profile
-    const { data: weights, error: weightError } = await supabase
-      .from('fdr_weightings')
-      .select('*')
-      .eq('is_active', true)
-      .single();
-
-    if (weightError) {
-      console.warn('No active weighting profile found');
-    }
-
     // Get gameweek info
     const { data: gameweek, error: gwError } = await supabase
       .from('gameweeks')
@@ -110,53 +99,23 @@ export default async function handler(req, res) {
         gameweek: gameweek?.name || `GW ${calculation.gameweek_calculated}`,
         games_played: calculation.games_played
       },
-      factors: {
-        goals_per_90: parseFloat(calculation.goals_per_90_score || 0),
-        goals_conceded_per_90: parseFloat(calculation.goals_conceded_per_90_score || 0),
-        xg_per_90: parseFloat(calculation.xg_per_90_score || 0),
-        xgc_per_90: parseFloat(calculation.xgc_per_90_score || 0),
-        home_goals_per_90: parseFloat(calculation.home_goals_per_90_score || 0),
-        home_xg_per_90: parseFloat(calculation.home_xg_per_90_score || 0),
-        away_goals_per_90: parseFloat(calculation.away_goals_per_90_score || 0),
-        away_xg_per_90: parseFloat(calculation.away_xg_per_90_score || 0),
-        recent_form: parseFloat(calculation.recent_form_score || 0),
-        ppg: parseFloat(calculation.ppg_score || 0),
-        goals_vs_xg: parseFloat(calculation.goals_vs_xg_score || 0)
-      },
-      raw_values: {
-        description: 'Non-normalized values for reference',
-        note: 'These are the actual stats before normalization to 0-100 scale'
-      },
-      scores: {
-        home_strength: parseFloat(calculation.home_strength_score || 0),
-        away_strength: parseFloat(calculation.away_strength_score || 0),
-        overall_strength: parseFloat(calculation.overall_strength_score || 0)
+      metrics: {
+        home: {
+          goals_per_90: parseFloat(calculation.home_goals_scored_per_90 || 0),
+          goals_per_90_score: parseInt(calculation.home_goals_scored_per_90_score || 5),
+          difficulty: parseInt(calculation.home_difficulty || 5)
+        },
+        away: {
+          goals_per_90: parseFloat(calculation.away_goals_scored_per_90 || 0),
+          goals_per_90_score: parseInt(calculation.away_goals_scored_per_90_score || 5),
+          difficulty: parseInt(calculation.away_difficulty || 5)
+        }
       },
       ratings: {
         home_difficulty: team.home_difficulty || calculation.home_difficulty || 5,
         away_difficulty: team.away_difficulty || calculation.away_difficulty || 5
       },
-      weights: weights ? {
-        profile_name: weights.name,
-        description: weights.description,
-        factors: {
-          goals_per_90: parseFloat(weights.weight_goals_per_90),
-          goals_conceded_per_90: parseFloat(weights.weight_goals_conceded_per_90),
-          xg_per_90: parseFloat(weights.weight_xg_per_90),
-          xgc_per_90: parseFloat(weights.weight_xgc_per_90),
-          home_goals_per_90: parseFloat(weights.weight_home_goals_per_90),
-          home_xg_per_90: parseFloat(weights.weight_home_xg_per_90),
-          away_goals_per_90: parseFloat(weights.weight_away_goals_per_90),
-          away_xg_per_90: parseFloat(weights.weight_away_xg_per_90),
-          recent_form: parseFloat(weights.weight_recent_form),
-          ppg: parseFloat(weights.weight_ppg),
-          goals_vs_xg: parseFloat(weights.weight_goals_vs_xg)
-        },
-        recent_form_params: {
-          gameweeks: weights.recent_form_gameweeks,
-          weight_percentage: parseFloat(weights.recent_form_weight_pct)
-        }
-      } : null
+      note: 'Simplified FDR focused on goals scored metrics. More factors to be added in future iterations.'
     });
 
   } catch (error) {

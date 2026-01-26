@@ -41,6 +41,11 @@ export default async function handler(req, res) {
       throw new Error(`Failed to fetch ratings: ${error.message}`);
     }
 
+    // Check if data is stale (>1 hour old)
+    const latestUpdate = teams[0]?.updated_at;
+    const ONE_HOUR = 60 * 60 * 1000;
+    const isStale = !latestUpdate || (Date.now() - new Date(latestUpdate).getTime()) > ONE_HOUR;
+
     // Format for frontend compatibility
     const ratings = teams.map(team => ({
       id: team.id,
@@ -50,6 +55,24 @@ export default async function handler(req, res) {
       h_diff: team.home_difficulty || 5,
       a_diff: team.away_difficulty || 5
     }));
+
+    // Trigger background FDR calculation if data is stale (fire-and-forget)
+    if (isStale && process.env.ADMIN_TOKEN) {
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+
+      fetch(`${baseUrl}/api/fdr/calculate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }).catch(err => {
+        console.error('Background FDR update failed:', err.message);
+        // Don't fail main request - this is background work
+      });
+    }
 
     return res.status(200).json({
       success: true,

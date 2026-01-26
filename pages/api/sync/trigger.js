@@ -1,14 +1,16 @@
 /**
  * API Endpoint: /api/sync/trigger
  *
- * Manually triggers a live gameweek sync
- * Useful for testing and manual updates
+ * Triggers full data sync: live gameweek sync + FDR calculation
+ * Called by Vercel cron every hour OR manually via admin token
  *
- * Security: Protected by ADMIN_TOKEN bearer token
+ * Security: Protected by CRON_SECRET (cron) or ADMIN_TOKEN (manual)
  *
  * Example:
  *   POST /api/sync/trigger
  *   Headers: Authorization: Bearer <ADMIN_TOKEN>
+ *   OR
+ *   Headers: x-vercel-cron-secret: <CRON_SECRET>
  */
 
 export default async function handler(req, res) {
@@ -17,11 +19,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Security: Verify admin token
+  // Security: Verify admin token OR cron secret
   const authHeader = req.headers.authorization;
+  const cronSecret = req.headers['x-vercel-cron-secret'];
   const expectedToken = `Bearer ${process.env.ADMIN_TOKEN}`;
 
-  if (!authHeader || authHeader !== expectedToken) {
+  const isAuthorized =
+    (authHeader && authHeader === expectedToken) ||
+    (cronSecret && cronSecret === process.env.CRON_SECRET);
+
+  if (!isAuthorized) {
     console.error('Unauthorized sync trigger attempt');
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -32,9 +39,9 @@ export default async function handler(req, res) {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const baseUrl = `${protocol}://${host}`;
 
-    console.log('🔄 Manually triggering sync...');
+    console.log('🔄 Triggering full sync (gameweek data + FDR)...');
 
-    // Call the live-gameweek sync endpoint
+    // Step 1: Call the live-gameweek sync endpoint
     const syncUrl = `${baseUrl}/api/sync/live-gameweek`;
     const syncResponse = await fetch(syncUrl, {
       method: 'POST',
@@ -45,17 +52,44 @@ export default async function handler(req, res) {
 
     const syncResult = await syncResponse.json();
 
-    // Return the sync result
-    return res.status(syncResponse.status).json({
+    if (!syncResponse.ok) {
+      throw new Error(`Gameweek sync failed: ${syncResult.message || syncResponse.status}`);
+    }
+
+    console.log('✓ Gameweek sync complete');
+
+    // Step 2: Call the FDR calculation endpoint
+    console.log('🎯 Triggering FDR calculation...');
+    const fdrUrl = `${baseUrl}/api/fdr/calculate`;
+    const fdrResponse = await fetch(fdrUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`
+      }
+    });
+
+    const fdrResult = await fdrResponse.json();
+
+    if (!fdrResponse.ok) {
+      console.warn('⚠ FDR calculation failed, but gameweek sync succeeded');
+    } else {
+      console.log('✓ FDR calculation complete');
+    }
+
+    // Return combined result
+    return res.status(200).json({
+      success: true,
       triggered: true,
+      triggered_at: new Date().toISOString(),
       sync_result: syncResult,
-      triggered_at: new Date().toISOString()
+      fdr_result: fdrResult
     });
 
   } catch (error) {
-    console.error('❌ Manual sync trigger failed:', error);
+    console.error('❌ Sync trigger failed:', error);
 
     return res.status(500).json({
+      success: false,
       error: 'Failed to trigger sync',
       message: error.message
     });

@@ -7,8 +7,8 @@
     ],
     "crons": [
       {
-        "path": "/api/fdr/calculate",
-        "schedule": "0 2 * * *"
+        "path": "/api/sync/trigger",
+        "schedule": "0 * * * *"
       }
     ]
   }
