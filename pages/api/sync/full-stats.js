@@ -176,7 +176,7 @@ export default async function handler(req, res) {
   }
 }
 
-// Longer timeout for full sync - may take 60-120 seconds
+// Max timeout on Hobby plan is 60 seconds (will timeout, but continues via fire-and-forget)
 export const config = {
-  maxDuration: 300, // 5 minutes max (requires Vercel Pro, but we'll use fire-and-forget)
+  maxDuration: 60,
 };
