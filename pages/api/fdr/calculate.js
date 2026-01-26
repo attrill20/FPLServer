@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     // Step 0: Check staleness (skip if data is fresh)
     const { data: currentGW } = await supabase
       .from('gameweeks')
-      .select('id')
+      .select('id, name')
       .eq('is_current', true)
       .single();
 
@@ -105,17 +105,7 @@ export default async function handler(req, res) {
 
     console.log(`  ✓ Calculated FDR for ${fdrResults.length} teams`);
 
-    // Step 2: Get current gameweek and season
-    const { data: currentGW, error: gwError } = await supabase
-      .from('gameweeks')
-      .select('id, name')
-      .eq('is_current', true)
-      .single();
-
-    if (gwError) {
-      console.warn('Warning: Could not get current gameweek:', gwError.message);
-      // Continue anyway - we can still update team ratings
-    }
+    // Step 2: Get current season
 
     const { data: currentSeason, error: seasonError } = await supabase
       .from('seasons')
