@@ -1,0 +1,31 @@
+name: Weekly Full Data Sync
+
+on:
+  schedule:
+    # Run every Sunday at 3 AM UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  full-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Full Historical Sync
+        run: |
+          echo "Starting full sync at $(date)"
+          echo "This will sync ALL players and ALL gameweeks (takes 2-3 minutes)"
+
+          # Fire-and-forget: trigger with 5 second timeout
+          # The sync continues on Vercel even after timeout
+          curl -X POST https://fpl-server-nine.vercel.app/api/sync/full-stats \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --max-time 5 \
+            -w "\nHTTP Status: %{http_code}\n" || true
+
+          echo "Full sync triggered successfully (running in background on Vercel)"
+          echo "Check Vercel logs to see completion (takes 2-3 minutes)"
+
+      - name: Log completion
+        run: echo "Weekly full sync triggered at $(date)"

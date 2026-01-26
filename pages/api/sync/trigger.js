@@ -1,16 +1,16 @@
 /**
  * API Endpoint: /api/sync/trigger
  *
- * Triggers full data sync: live gameweek sync + FDR calculation
- * Called by Vercel cron every hour OR manually via admin token
+ * Triggers QUICK data sync (recent players only) + FDR calculation
+ * Called by GitHub Actions hourly OR manually via admin token
  *
- * Security: Protected by CRON_SECRET (cron) or ADMIN_TOKEN (manual)
+ * For full historical sync, use /api/sync/full-stats (run weekly)
+ *
+ * Security: Protected by ADMIN_TOKEN
  *
  * Example:
  *   POST /api/sync/trigger
  *   Headers: Authorization: Bearer <ADMIN_TOKEN>
- *   OR
- *   Headers: x-vercel-cron-secret: <CRON_SECRET>
  */
 
 export default async function handler(req, res) {
@@ -19,16 +19,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Security: Verify admin token OR cron secret
+  // Security: Verify admin token
   const authHeader = req.headers.authorization;
-  const cronSecret = req.headers['x-vercel-cron-secret'];
   const expectedToken = `Bearer ${process.env.ADMIN_TOKEN}`;
 
-  const isAuthorized =
-    (authHeader && authHeader === expectedToken) ||
-    (cronSecret && cronSecret === process.env.CRON_SECRET);
-
-  if (!isAuthorized) {
+  if (!authHeader || authHeader !== expectedToken) {
     console.error('Unauthorized sync trigger attempt');
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -39,24 +34,24 @@ export default async function handler(req, res) {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const baseUrl = `${protocol}://${host}`;
 
-    console.log('🔄 Triggering full sync (gameweek data + FDR)...');
+    console.log('⚡ Triggering QUICK sync (recent players + FDR)...');
 
-    // Step 1: Call the live-gameweek sync endpoint
-    const syncUrl = `${baseUrl}/api/sync/live-gameweek`;
+    // Step 1: Call the quick-stats sync endpoint (recent players only)
+    const syncUrl = `${baseUrl}/api/sync/quick-stats`;
     const syncResponse = await fetch(syncUrl, {
       method: 'POST',
       headers: {
-        'x-vercel-cron-secret': process.env.CRON_SECRET
+        'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`
       }
     });
 
     const syncResult = await syncResponse.json();
 
     if (!syncResponse.ok) {
-      throw new Error(`Gameweek sync failed: ${syncResult.message || syncResponse.status}`);
+      throw new Error(`Quick sync failed: ${syncResult.message || syncResponse.status}`);
     }
 
-    console.log('✓ Gameweek sync complete');
+    console.log('✓ Quick sync complete');
 
     // Step 2: Call the FDR calculation endpoint
     console.log('🎯 Triggering FDR calculation...');
