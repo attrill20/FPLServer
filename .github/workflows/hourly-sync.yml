@@ -1,0 +1,27 @@
+name: Hourly FPL Data Sync
+
+on:
+  schedule:
+    # Run every hour at the top of the hour
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger FPL Data Sync
+        run: |
+          curl -X POST https://fpl-server-nine.vercel.app/api/sync/trigger \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --fail --silent --show-error
+
+      - name: Log completion
+        if: success()
+        run: echo "Sync triggered successfully at $(date)"
+
+      - name: Log failure
+        if: failure()
+        run: echo "Sync failed at $(date)"
