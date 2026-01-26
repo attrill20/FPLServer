@@ -62,8 +62,8 @@ export default async function handler(req, res) {
     }
     const fixtures = await fixturesResponse.json();
 
-    // Get finished fixtures from last 2 gameweeks
-    const recentGWs = [currentGW.id, currentGW.id - 1];
+    // Get finished fixtures from current gameweek only (for speed)
+    const recentGWs = [currentGW.id];
     const recentFixtures = fixtures.filter(f =>
       f.finished &&
       f.event &&
@@ -200,7 +200,7 @@ export default async function handler(req, res) {
   }
 }
 
-// Should complete in ~20 seconds for 220 recent players
+// Max timeout on Hobby plan - should complete in ~40 seconds for current GW
 export const config = {
-  maxDuration: 30,
+  maxDuration: 60,
 };
