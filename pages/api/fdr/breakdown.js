@@ -97,7 +97,9 @@ export default async function handler(req, res) {
       calculation: {
         timestamp: calculation.calculation_timestamp,
         gameweek: gameweek?.name || `GW ${calculation.gameweek_calculated}`,
-        games_played: calculation.games_played
+        games_played: calculation.games_played,
+        home_games: calculation.home_games || 0,
+        away_games: calculation.away_games || 0
       },
       metrics: {
         home: {

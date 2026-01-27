@@ -125,6 +125,8 @@ export default async function handler(req, res) {
         season_id: currentSeason.id,
         gameweek_calculated: currentGW.id,
         games_played: team.games_played || 0,
+        home_games: team.home_games || 0,
+        away_games: team.away_games || 0,
         // Simplified metrics: goals scored only (home/away split)
         home_goals_scored_per_90: team.home_goals_scored_per_90 || 0,
         home_goals_scored_per_90_score: team.home_goals_scored_per_90_score || 5,
@@ -172,6 +174,8 @@ export default async function handler(req, res) {
           season_id: currentSeason.id,
           gameweek_calculated: currentGW.id,
           games_played: 0,
+          home_games: 0,
+          away_games: 0,
           home_goals_scored_per_90: 0,
           home_goals_scored_per_90_score: 5,
           away_goals_scored_per_90: 0,
@@ -234,6 +238,8 @@ export default async function handler(req, res) {
       sample_ratings: topTeams.map(t => ({
         team: t.team_name,
         games_played: t.games_played,
+        home_games: t.home_games,
+        away_games: t.away_games,
         home_goals_per_90: t.home_goals_scored_per_90,
         home_difficulty: t.home_difficulty,
         away_goals_per_90: t.away_goals_scored_per_90,
