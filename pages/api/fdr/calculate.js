@@ -137,12 +137,9 @@ export default async function handler(req, res) {
         home_xg_per_90_score: team.home_xg_per_90_score || 5,
         away_xg_per_90: team.away_xg_per_90 || 0,
         away_xg_per_90_score: team.away_xg_per_90_score || 5,
-        // Overall strength ratings
-        home_strength: team.home_strength || 5.0,
-        away_strength: team.away_strength || 5.0,
-        // Final difficulty ratings (1-10)
-        home_difficulty: team.home_difficulty || 5,
-        away_difficulty: team.away_difficulty || 5,
+        // Final difficulty ratings (1-10, can be decimal like 7.5)
+        home_difficulty: team.home_difficulty || 5.0,
+        away_difficulty: team.away_difficulty || 5.0,
         calculation_timestamp: new Date().toISOString()
       }));
 
@@ -192,10 +189,8 @@ export default async function handler(req, res) {
           home_xg_per_90_score: 5,
           away_xg_per_90: 0,
           away_xg_per_90_score: 5,
-          home_strength: 5.0,
-          away_strength: 5.0,
-          home_difficulty: 5,
-          away_difficulty: 5,
+          home_difficulty: 5.0,
+          away_difficulty: 5.0,
           calculation_timestamp: new Date().toISOString()
         }));
 
@@ -239,8 +234,8 @@ export default async function handler(req, res) {
     console.log('   Sample ratings (top 3 by home goals per 90):');
     topTeams.forEach(team => {
       console.log(`   - ${team.team_name}:`);
-      console.log(`     Home: ${team.home_goals_scored_per_90} goals/90 (${team.home_difficulty}), ${team.home_xg_per_90} xG/90 (${team.home_xg_per_90_score}) → Strength: ${team.home_strength}`);
-      console.log(`     Away: ${team.away_goals_scored_per_90} goals/90 (${team.away_difficulty}), ${team.away_xg_per_90} xG/90 (${team.away_xg_per_90_score}) → Strength: ${team.away_strength}`);
+      console.log(`     Home: ${team.home_goals_scored_per_90} goals/90 (score ${team.home_goals_scored_per_90_score}), ${team.home_xg_per_90} xG/90 (score ${team.home_xg_per_90_score}) → Difficulty: ${team.home_difficulty}`);
+      console.log(`     Away: ${team.away_goals_scored_per_90} goals/90 (score ${team.away_goals_scored_per_90_score}), ${team.away_xg_per_90} xG/90 (score ${team.away_xg_per_90_score}) → Difficulty: ${team.away_difficulty}`);
     });
 
     return res.status(200).json({
@@ -257,12 +252,14 @@ export default async function handler(req, res) {
         home_games: t.home_games,
         away_games: t.away_games,
         home_goals_per_90: t.home_goals_scored_per_90,
+        home_goals_score: t.home_goals_scored_per_90_score,
         home_xg_per_90: t.home_xg_per_90,
-        home_strength: t.home_strength,
+        home_xg_score: t.home_xg_per_90_score,
         home_difficulty: t.home_difficulty,
         away_goals_per_90: t.away_goals_scored_per_90,
+        away_goals_score: t.away_goals_scored_per_90_score,
         away_xg_per_90: t.away_xg_per_90,
-        away_strength: t.away_strength,
+        away_xg_score: t.away_xg_per_90_score,
         away_difficulty: t.away_difficulty
       }))
     });
