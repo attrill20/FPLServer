@@ -72,7 +72,25 @@ export default async function handler(req, res) {
 
     console.log('✓ Quick sync complete');
 
-    // Step 2: Call the FDR calculation endpoint
+    // Step 2: Sync FPL difficulty ratings
+    console.log('🎯 Syncing FPL difficulty ratings...');
+    const fplDiffUrl = `${baseUrl}/api/sync/fpl-difficulty`;
+    const fplDiffResponse = await fetch(fplDiffUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`
+      }
+    });
+
+    const fplDiffResult = await fplDiffResponse.json();
+
+    if (!fplDiffResponse.ok) {
+      console.warn('⚠ FPL difficulty sync failed');
+    } else {
+      console.log('✓ FPL difficulty sync complete');
+    }
+
+    // Step 3: Call the FDR calculation endpoint
     console.log('🎯 Triggering FDR calculation...');
     const fdrUrl = `${baseUrl}/api/fdr/calculate`;
     const fdrResponse = await fetch(fdrUrl, {
@@ -97,6 +115,7 @@ export default async function handler(req, res) {
       triggered_at: new Date().toISOString(),
       players_result: playersResult,
       sync_result: syncResult,
+      fpl_difficulty_result: fplDiffResult,
       fdr_result: fdrResult
     });
 

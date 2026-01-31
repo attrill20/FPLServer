@@ -1,8 +1,9 @@
 /**
  * API Endpoint: /api/sync/quick-stats
  *
- * QUICK SYNC: Only syncs players who played in the last 2 gameweeks
- * This is ~220 players instead of 700+, so it completes in <20 seconds
+ * QUICK SYNC: Only syncs players who played in the last 3 gameweeks
+ * This catches missing recent data (e.g., GW 22 when we're on GW 23)
+ * Syncs ~220-300 players instead of 700+, completes in <30 seconds
  *
  * Run this HOURLY via GitHub Actions
  *
@@ -53,7 +54,7 @@ export default async function handler(req, res) {
       throw new Error('No current gameweek found');
     }
 
-    console.log(`  → Syncing recent players for ${currentGW.name}...`);
+    console.log(`  → Syncing recent players for ${currentGW.name} and previous 2 gameweeks...`);
 
     // Fetch fixtures to find which players played recently
     const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`);
@@ -62,8 +63,8 @@ export default async function handler(req, res) {
     }
     const fixtures = await fixturesResponse.json();
 
-    // Get finished fixtures from current gameweek only (for speed)
-    const recentGWs = [currentGW.id];
+    // Get finished fixtures from last 3 gameweeks (catches missing data)
+    const recentGWs = [currentGW.id, currentGW.id - 1, currentGW.id - 2].filter(gw => gw > 0);
     const recentFixtures = fixtures.filter(f =>
       f.finished &&
       f.event &&
