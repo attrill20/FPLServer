@@ -49,65 +49,34 @@ export default async function handler(req, res) {
     const players = bootstrap.elements;
     console.log(`  → Syncing ${players.length} players...`);
 
-    let added = 0;
-    let updated = 0;
-    let errors = 0;
+    // Build the full batch — single upsert call instead of 809 individual ones
+    const playerRecords = players.map(player => ({
+      id: player.id,
+      code: player.code,
+      team_id: player.team,
+      web_name: player.web_name,
+      first_name: player.first_name,
+      second_name: player.second_name,
+      element_type: player.element_type
+    }));
 
-    // Upsert all players
-    for (const player of players) {
-      try {
-        // Check if player exists
-        const { data: existing } = await supabase
-          .from('players')
-          .select('id')
-          .eq('id', player.id)
-          .single();
+    const { error } = await supabase
+      .from('players')
+      .upsert(playerRecords, { onConflict: 'id' });
 
-        const { error } = await supabase
-          .from('players')
-          .upsert({
-            id: player.id,
-            code: player.code,
-            team_id: player.team,
-            web_name: player.web_name,
-            first_name: player.first_name,
-            second_name: player.second_name,
-            element_type: player.element_type
-          }, {
-            onConflict: 'id'
-          });
-
-        if (error) {
-          console.error(`  ✗ ${player.web_name}:`, error.message);
-          errors++;
-        } else {
-          if (existing) {
-            updated++;
-          } else {
-            added++;
-          }
-        }
-      } catch (error) {
-        console.error(`  ✗ Failed to sync ${player.web_name}:`, error.message);
-        errors++;
-      }
+    if (error) {
+      throw new Error(`Batch upsert failed: ${error.message}`);
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-    console.log(`✓ Players sync complete in ${duration}s`);
-    console.log(`  Added: ${added} new players`);
-    console.log(`  Updated: ${updated} existing players`);
-    console.log(`  Errors: ${errors}`);
+    console.log(`✓ Players sync complete in ${duration}s (${players.length} players)`);
 
     return res.status(200).json({
       success: true,
       message: 'Players synced successfully',
       stats: {
         total_players: players.length,
-        added,
-        updated,
-        errors,
         duration_seconds: parseFloat(duration)
       }
     });
