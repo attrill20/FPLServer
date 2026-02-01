@@ -21,7 +21,7 @@ const supabase = createClient(
 );
 
 const FPL_API_BASE = 'https://fantasy.premierleague.com/api';
-const RATE_LIMIT_DELAY = 100; // ms between requests
+const RATE_LIMIT_DELAY = 200; // ms between requests
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -54,21 +54,20 @@ export default async function handler(req, res) {
       throw new Error('No current gameweek found');
     }
 
-    console.log(`  → Syncing recent players for ${currentGW.name} and previous 2 gameweeks...`);
+    console.log(`  → Syncing players for ${currentGW.name} only...`);
 
-    // Fetch fixtures to find which players played recently
+    // Fetch fixtures to find which players played in current gameweek
     const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`);
     if (!fixturesResponse.ok) {
       throw new Error(`FPL API error: ${fixturesResponse.status}`);
     }
     const fixtures = await fixturesResponse.json();
 
-    // Get finished fixtures from last 3 gameweeks (catches missing data)
-    const recentGWs = [currentGW.id, currentGW.id - 1, currentGW.id - 2].filter(gw => gw > 0);
+    // Current gameweek only — weekly full sync covers historical backfill
+    const recentGWs = [currentGW.id];
     const recentFixtures = fixtures.filter(f =>
       f.finished &&
-      f.event &&
-      recentGWs.includes(f.event)
+      f.event === currentGW.id
     );
 
     console.log(`  → Found ${recentFixtures.length} recent fixtures`);
@@ -90,18 +89,25 @@ export default async function handler(req, res) {
     let updatedPlayers = 0;
     let errors = 0;
 
-    // Process players in batches
-    const BATCH_SIZE = 10;
-    for (let i = 0; i < playerIds.length; i += BATCH_SIZE) {
-      const batch = playerIds.slice(i, i + BATCH_SIZE);
-
-      await Promise.all(batch.map(async (playerId) => {
-        try {
+    // Process players sequentially to avoid rate limiting
+    for (let i = 0; i < playerIds.length; i++) {
+      const playerId = playerIds[i];
+      try {
           // Fetch player's element-summary
           const response = await fetch(`${FPL_API_BASE}/element-summary/${playerId}/`);
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
+
+          // FPL API sometimes returns HTML (rate limit page) with a 200 status
+          const contentType = response.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            console.warn(`  ⚠ Player ${playerId}: Got non-JSON response (${contentType}), skipping`);
+            errors++;
+            await delay(RATE_LIMIT_DELAY * 5); // Back off longer if rate limited
+            continue;
+          }
+
           const summary = await response.json();
 
           // Get recent gameweeks from history
@@ -154,18 +160,17 @@ export default async function handler(req, res) {
               }
             }
           }
-        } catch (error) {
-          console.error(`  ✗ Failed to sync player ${playerId}:`, error.message);
-          errors++;
-        }
-      }));
+      } catch (error) {
+        console.error(`  ✗ Failed to sync player ${playerId}:`, error.message);
+        errors++;
+      }
 
-      // Rate limiting between batches
-      await delay(RATE_LIMIT_DELAY * BATCH_SIZE);
+      // Rate limiting between each player
+      await delay(RATE_LIMIT_DELAY);
 
-      // Progress log every 10 batches
-      if ((i / BATCH_SIZE + 1) % 10 === 0) {
-        const progress = Math.round(((i + BATCH_SIZE) / playerIds.length) * 100);
+      // Progress log every 50 players
+      if ((i + 1) % 50 === 0) {
+        const progress = Math.round(((i + 1) / playerIds.length) * 100);
         console.log(`  ⏳ Progress: ${progress}% (${updatedPlayers} updated, ${errors} errors)`);
       }
     }

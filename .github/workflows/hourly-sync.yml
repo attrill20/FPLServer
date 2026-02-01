@@ -18,7 +18,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             -X POST https://fpl-server-nine.vercel.app/api/sync/players \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 55)
+            --max-time 60)
           echo "HTTP Status: $HTTP_CODE"
           cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
           [ "$HTTP_CODE" = "200" ] || { echo "ERROR: Players sync failed"; exit 1; }
@@ -29,7 +29,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             -X POST https://fpl-server-nine.vercel.app/api/sync/quick-stats \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 55)
+            --max-time 60)
           echo "HTTP Status: $HTTP_CODE"
           cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
           [ "$HTTP_CODE" = "200" ] || { echo "ERROR: Quick stats sync failed"; exit 1; }
@@ -40,7 +40,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             -X POST https://fpl-server-nine.vercel.app/api/sync/fpl-difficulty \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 55)
+            --max-time 60)
           echo "HTTP Status: $HTTP_CODE"
           cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
           [ "$HTTP_CODE" = "200" ] || { echo "ERROR: FPL difficulty sync failed"; exit 1; }
@@ -51,7 +51,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             -X POST https://fpl-server-nine.vercel.app/api/fdr/calculate \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 55)
+            --max-time 60)
           echo "HTTP Status: $HTTP_CODE"
           cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
           [ "$HTTP_CODE" = "200" ] || { echo "ERROR: FDR calculation failed"; exit 1; }
