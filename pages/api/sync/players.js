@@ -68,6 +68,40 @@ export default async function handler(req, res) {
       throw new Error(`Batch upsert failed: ${error.message}`);
     }
 
+    // Sync gameweek statuses from FPL API bootstrap events
+    const apiCurrentGW = bootstrap.events.find(e => e.is_current);
+    let gameweekAdvanced = null;
+
+    if (apiCurrentGW) {
+      const { data: dbCurrentGW } = await supabase
+        .from('gameweeks')
+        .select('id, name')
+        .eq('is_current', true)
+        .single();
+
+      if (dbCurrentGW && dbCurrentGW.id !== apiCurrentGW.id) {
+        console.log(`  → Advancing gameweek: ${dbCurrentGW.name} → Gameweek ${apiCurrentGW.id}`);
+
+        await supabase
+          .from('gameweeks')
+          .update({ is_current: false, finished: true })
+          .eq('id', dbCurrentGW.id);
+
+        await supabase
+          .from('gameweeks')
+          .update({ is_current: true, finished: apiCurrentGW.finished })
+          .eq('id', apiCurrentGW.id);
+
+        gameweekAdvanced = { from: dbCurrentGW.id, to: apiCurrentGW.id };
+      } else {
+        // Same gameweek — just keep finished flag in sync
+        await supabase
+          .from('gameweeks')
+          .update({ finished: apiCurrentGW.finished })
+          .eq('id', apiCurrentGW.id);
+      }
+    }
+
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     console.log(`✓ Players sync complete in ${duration}s (${players.length} players)`);
@@ -77,7 +111,8 @@ export default async function handler(req, res) {
       message: 'Players synced successfully',
       stats: {
         total_players: players.length,
-        duration_seconds: parseFloat(duration)
+        duration_seconds: parseFloat(duration),
+        gameweek_advanced: gameweekAdvanced
       }
     });
 
