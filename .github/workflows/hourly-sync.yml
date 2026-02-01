@@ -11,32 +11,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger Quick Sync (Recent Players + FDR)
+      # Each endpoint called separately so they each get their own 60s timeout window
+      - name: Sync Players
         run: |
-          echo "Triggering quick sync at $(date)"
-          echo "Syncing ~220 recent players (last 2 gameweeks) + FDR calculation"
-
-          # Wait for full response - trigger.js now has maxDuration: 120s
-          HTTP_CODE=$(curl -s -o /tmp/sync_response.json -w "%{http_code}" \
-            -X POST https://fpl-server-nine.vercel.app/api/sync/trigger \
+          echo "Step 1/4: Syncing players at $(date)"
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST https://fpl-server-nine.vercel.app/api/sync/players \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            --max-time 115)
-
+            --max-time 55)
           echo "HTTP Status: $HTTP_CODE"
-          cat /tmp/sync_response.json | python3 -m json.tool 2>/dev/null || cat /tmp/sync_response.json
+          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: Players sync failed"; exit 1; }
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "ERROR: Sync failed with status $HTTP_CODE"
-            exit 1
-          fi
+      - name: Sync Quick Stats
+        run: |
+          echo "Step 2/4: Syncing quick stats at $(date)"
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST https://fpl-server-nine.vercel.app/api/sync/quick-stats \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 55)
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: Quick stats sync failed"; exit 1; }
 
-          echo "Sync completed successfully"
+      - name: Sync FPL Difficulty
+        run: |
+          echo "Step 3/4: Syncing FPL difficulty at $(date)"
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST https://fpl-server-nine.vercel.app/api/sync/fpl-difficulty \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 55)
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: FPL difficulty sync failed"; exit 1; }
 
-      - name: Log completion
-        if: success()
-        run: echo "Sync triggered successfully at $(date)"
-
-      - name: Log failure
-        if: failure()
-        run: echo "Sync failed at $(date)"
+      - name: Calculate FDR
+        run: |
+          echo "Step 4/4: Calculating FDR at $(date)"
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST https://fpl-server-nine.vercel.app/api/fdr/calculate \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 55)
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: FDR calculation failed"; exit 1; }
