@@ -54,41 +54,12 @@ export default async function handler(req, res) {
   const startTime = Date.now();
 
   try {
-    // Step 0: Check staleness (skip if data is fresh)
+    // Step 0: Get current gameweek
     const { data: currentGW } = await supabase
       .from('gameweeks')
       .select('id, name')
       .eq('is_current', true)
       .single();
-
-    const { data: lastCalc } = await supabase
-      .from('team_fdr_calculations')
-      .select('calculation_timestamp, gameweek_calculated')
-      .order('calculation_timestamp', { ascending: false })
-      .limit(1)
-      .single();
-
-    const ONE_HOUR = 60 * 60 * 1000;
-    const now = Date.now();
-    const lastCalcTime = lastCalc ? new Date(lastCalc.calculation_timestamp).getTime() : 0;
-    const timeSinceLastCalc = now - lastCalcTime;
-
-    const isStale = !lastCalc ||
-                    lastCalc.gameweek_calculated !== currentGW?.id ||
-                    timeSinceLastCalc > ONE_HOUR;
-
-    if (!isStale) {
-      console.log(`⏭️  FDR is up to date (last calculated ${Math.round(timeSinceLastCalc / 60000)} minutes ago)`);
-      return res.status(200).json({
-        success: true,
-        message: 'FDR is up to date',
-        skipped: true,
-        last_calculation: lastCalc.calculation_timestamp,
-        minutes_since_update: Math.round(timeSinceLastCalc / 60000)
-      });
-    }
-
-    console.log(`  ℹ️  Data is stale (${Math.round(timeSinceLastCalc / 60000)} minutes old), recalculating...`);
 
     // Step 1: Calculate FDR using SQL function
     console.log('  → Running calculate_team_fdr() function...');
@@ -137,6 +108,11 @@ export default async function handler(req, res) {
         home_xg_per_90_score: team.home_xg_per_90_score || 5,
         away_xg_per_90: team.away_xg_per_90 || 0,
         away_xg_per_90_score: team.away_xg_per_90_score || 5,
+        // xGC metrics (home/away split)
+        home_xgc_per_90: team.home_xgc_per_90 || 0,
+        home_xgc_per_90_score: team.home_xgc_per_90_score || 5,
+        away_xgc_per_90: team.away_xgc_per_90 || 0,
+        away_xgc_per_90_score: team.away_xgc_per_90_score || 5,
         // Final difficulty ratings (1-10, can be decimal like 7.5)
         home_difficulty: team.home_difficulty || 5.0,
         away_difficulty: team.away_difficulty || 5.0,
@@ -189,6 +165,10 @@ export default async function handler(req, res) {
           home_xg_per_90_score: 5,
           away_xg_per_90: 0,
           away_xg_per_90_score: 5,
+          home_xgc_per_90: 0,
+          home_xgc_per_90_score: 5,
+          away_xgc_per_90: 0,
+          away_xgc_per_90_score: 5,
           home_difficulty: 5.0,
           away_difficulty: 5.0,
           calculation_timestamp: new Date().toISOString()
