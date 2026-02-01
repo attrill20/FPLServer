@@ -129,3 +129,7 @@ export default async function handler(req, res) {
     });
   }
 }
+
+export const config = {
+  maxDuration: 120, // 2 minutes - needs time for players sync + quick stats + FDR calculation
+};

@@ -16,16 +16,22 @@ jobs:
           echo "Triggering quick sync at $(date)"
           echo "Syncing ~220 recent players (last 2 gameweeks) + FDR calculation"
 
-          # Fire-and-forget: trigger with 2 second timeout
-          # The sync continues on Vercel even after timeout
-          curl -X POST https://fpl-server-nine.vercel.app/api/sync/trigger \
+          # Wait for full response - trigger.js now has maxDuration: 120s
+          HTTP_CODE=$(curl -s -o /tmp/sync_response.json -w "%{http_code}" \
+            -X POST https://fpl-server-nine.vercel.app/api/sync/trigger \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
             -H "Content-Type: application/json" \
-            --max-time 2 \
-            -w "\nHTTP Status: %{http_code}\n" || true
+            --max-time 115)
 
-          echo "Quick sync triggered successfully (running in background)"
-          echo "This syncs recent players only. Full sync runs weekly on Sundays."
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/sync_response.json | python3 -m json.tool 2>/dev/null || cat /tmp/sync_response.json
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "ERROR: Sync failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Sync completed successfully"
 
       - name: Log completion
         if: success()
