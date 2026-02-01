@@ -98,6 +98,9 @@ export default async function handler(req, res) {
         games_played: team.games_played || 0,
         home_games: team.home_games || 0,
         away_games: team.away_games || 0,
+        // Final difficulty ratings (1-10, can be decimal like 7.5)
+        home_difficulty: team.home_difficulty || 5.0,
+        away_difficulty: team.away_difficulty || 5.0,
         // Goals metrics (home/away split)
         home_goals_scored_per_90: team.home_goals_scored_per_90 || 0,
         home_goals_scored_per_90_score: team.home_goals_scored_per_90_score || 5,
@@ -113,9 +116,6 @@ export default async function handler(req, res) {
         home_xgc_per_90_score: team.home_xgc_per_90_score || 5,
         away_xgc_per_90: team.away_xgc_per_90 || 0,
         away_xgc_per_90_score: team.away_xgc_per_90_score || 5,
-        // Final difficulty ratings (1-10, can be decimal like 7.5)
-        home_difficulty: team.home_difficulty || 5.0,
-        away_difficulty: team.away_difficulty || 5.0,
         calculation_timestamp: new Date().toISOString()
       }));
 
@@ -157,6 +157,8 @@ export default async function handler(req, res) {
           games_played: 0,
           home_games: 0,
           away_games: 0,
+          home_difficulty: 5.0,
+          away_difficulty: 5.0,
           home_goals_scored_per_90: 0,
           home_goals_scored_per_90_score: 5,
           away_goals_scored_per_90: 0,
@@ -169,8 +171,6 @@ export default async function handler(req, res) {
           home_xgc_per_90_score: 5,
           away_xgc_per_90: 0,
           away_xgc_per_90_score: 5,
-          home_difficulty: 5.0,
-          away_difficulty: 5.0,
           calculation_timestamp: new Date().toISOString()
         }));
 
