@@ -83,8 +83,17 @@ export default async function handler(req, res) {
       }
     });
 
-    const playerIds = Array.from(recentPlayerIds);
-    console.log(`  → Syncing ${playerIds.length} players who played recently...`);
+    // Check which players we already have data for this gameweek
+    const { data: existingStats } = await supabase
+      .from('player_gameweek_stats')
+      .select('player_id')
+      .eq('gameweek_id', currentGW.id);
+
+    const existingPlayerIds = new Set((existingStats || []).map(s => s.player_id));
+
+    // Only fetch players we don't already have
+    const playerIds = Array.from(recentPlayerIds).filter(id => !existingPlayerIds.has(id));
+    console.log(`  → ${recentPlayerIds.size} players found, ${existingPlayerIds.size} already synced, ${playerIds.length} remaining...`);
 
     let updatedPlayers = 0;
     let errors = 0;
