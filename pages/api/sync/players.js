@@ -67,45 +67,12 @@ export default async function handler(req, res) {
           .from('players')
           .upsert({
             id: player.id,
+            code: player.code,
             team_id: player.team,
             web_name: player.web_name,
             first_name: player.first_name,
             second_name: player.second_name,
-            element_type: player.element_type,
-            now_cost: player.now_cost,
-            cost_change_start: player.cost_change_start,
-            cost_change_event: player.cost_change_event,
-            total_points: player.total_points,
-            points_per_game: player.points_per_game,
-            ep_this: player.ep_this,
-            ep_next: player.ep_next,
-            form: player.form,
-            selected_by_percent: player.selected_by_percent,
-            transfers_in: player.transfers_in,
-            transfers_out: player.transfers_out,
-            transfers_in_event: player.transfers_in_event,
-            transfers_out_event: player.transfers_out_event,
-            minutes: player.minutes,
-            goals_scored: player.goals_scored,
-            assists: player.assists,
-            clean_sheets: player.clean_sheets,
-            goals_conceded: player.goals_conceded,
-            own_goals: player.own_goals,
-            penalties_saved: player.penalties_saved,
-            penalties_missed: player.penalties_missed,
-            yellow_cards: player.yellow_cards,
-            red_cards: player.red_cards,
-            saves: player.saves,
-            bonus: player.bonus,
-            bps: player.bps,
-            influence: player.influence,
-            creativity: player.creativity,
-            threat: player.threat,
-            ict_index: player.ict_index,
-            status: player.status,
-            news: player.news,
-            photo: player.photo,
-            updated_at: new Date().toISOString()
+            element_type: player.element_type
           }, {
             onConflict: 'id'
           });
@@ -156,7 +123,6 @@ export default async function handler(req, res) {
   }
 }
 
-// Fast sync - completes in ~2-5 seconds
 export const config = {
-  maxDuration: 10,
+  maxDuration: 60,
 };
