@@ -55,8 +55,17 @@ export default async function handler(req, res) {
   const startTime = Date.now();
 
   try {
-    // Fetch fixtures from FPL API
-    const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`);
+    // Fetch fixtures from FPL API with browser-like headers to avoid 403
+    const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://fantasy.premierleague.com/',
+        'Origin': 'https://fantasy.premierleague.com'
+      }
+    });
     if (!fixturesResponse.ok) {
       throw new Error(`FPL API error: ${fixturesResponse.status}`);
     }

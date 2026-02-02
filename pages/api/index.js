@@ -26,8 +26,15 @@ export default async (req, res) => {
         apiUrl = `https://fantasy.premierleague.com/api/${endpoint}`;
       }
 
-      // Fetch data based on the specified endpoint
-      const response = await fetch(apiUrl);
+      // Fetch data based on the specified endpoint with browser-like headers
+      const response = await fetch(apiUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+          'Referer': 'https://fantasy.premierleague.com/'
+        }
+      });
 
       // Check if the response is okay
       if (!response.ok) {
