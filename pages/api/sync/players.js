@@ -39,8 +39,17 @@ export default async function handler(req, res) {
   const startTime = Date.now();
 
   try {
-    // Fetch bootstrap-static data (contains all players)
-    const response = await fetch(`${FPL_API_BASE}/bootstrap-static/`);
+    // Fetch bootstrap-static data (contains all players) with browser-like headers
+    const response = await fetch(`${FPL_API_BASE}/bootstrap-static/`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://fantasy.premierleague.com/',
+        'Origin': 'https://fantasy.premierleague.com'
+      }
+    });
     if (!response.ok) {
       throw new Error(`FPL API error: ${response.status}`);
     }

@@ -55,8 +55,17 @@ export default async function handler(req, res) {
 
     console.log(`  → Full sync up to ${currentGW.name}...`);
 
-    // Fetch all players from bootstrap-static
-    const bootstrapResponse = await fetch(`${FPL_API_BASE}/bootstrap-static/`);
+    // Fetch all players from bootstrap-static with browser-like headers
+    const bootstrapResponse = await fetch(`${FPL_API_BASE}/bootstrap-static/`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://fantasy.premierleague.com/',
+        'Origin': 'https://fantasy.premierleague.com'
+      }
+    });
     if (!bootstrapResponse.ok) {
       throw new Error(`FPL API error: ${bootstrapResponse.status}`);
     }
@@ -75,8 +84,15 @@ export default async function handler(req, res) {
 
       await Promise.all(batch.map(async (player) => {
         try {
-          // Fetch player's element-summary
-          const response = await fetch(`${FPL_API_BASE}/element-summary/${player.id}/`);
+          // Fetch player's element-summary with browser-like headers
+          const response = await fetch(`${FPL_API_BASE}/element-summary/${player.id}/`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/json',
+              'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+              'Referer': 'https://fantasy.premierleague.com/'
+            }
+          });
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }

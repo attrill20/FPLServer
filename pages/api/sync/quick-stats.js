@@ -57,7 +57,16 @@ export default async function handler(req, res) {
     console.log(`  → Syncing players for ${currentGW.name} only...`);
 
     // Fetch fixtures to find which players played in current gameweek
-    const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`);
+    const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://fantasy.premierleague.com/',
+        'Origin': 'https://fantasy.premierleague.com'
+      }
+    });
     if (!fixturesResponse.ok) {
       throw new Error(`FPL API error: ${fixturesResponse.status}`);
     }
@@ -102,8 +111,15 @@ export default async function handler(req, res) {
     for (let i = 0; i < playerIds.length; i++) {
       const playerId = playerIds[i];
       try {
-          // Fetch player's element-summary
-          const response = await fetch(`${FPL_API_BASE}/element-summary/${playerId}/`);
+          // Fetch player's element-summary with browser-like headers
+          const response = await fetch(`${FPL_API_BASE}/element-summary/${playerId}/`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/json',
+              'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+              'Referer': 'https://fantasy.premierleague.com/'
+            }
+          });
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
