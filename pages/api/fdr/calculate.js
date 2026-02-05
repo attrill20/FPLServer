@@ -101,11 +101,16 @@ export default async function handler(req, res) {
         // Final difficulty ratings (1-10, can be decimal like 7.5)
         home_difficulty: team.home_difficulty || 5.0,
         away_difficulty: team.away_difficulty || 5.0,
-        // Goals metrics (home/away split)
+        // Goals scored metrics (home/away split)
         home_goals_scored_per_90: team.home_goals_scored_per_90 || 0,
         home_goals_scored_per_90_score: team.home_goals_scored_per_90_score || 5,
         away_goals_scored_per_90: team.away_goals_scored_per_90 || 0,
         away_goals_scored_per_90_score: team.away_goals_scored_per_90_score || 5,
+        // Goals conceded metrics (home/away split)
+        home_goals_conceded_per_90: team.home_goals_conceded_per_90 || 0,
+        home_goals_conceded_per_90_score: team.home_goals_conceded_per_90_score || 5,
+        away_goals_conceded_per_90: team.away_goals_conceded_per_90 || 0,
+        away_goals_conceded_per_90_score: team.away_goals_conceded_per_90_score || 5,
         // xG metrics (home/away split)
         home_xg_per_90: team.home_xg_per_90 || 0,
         home_xg_per_90_score: team.home_xg_per_90_score || 5,
@@ -116,6 +121,9 @@ export default async function handler(req, res) {
         home_xgc_per_90_score: team.home_xgc_per_90_score || 5,
         away_xgc_per_90: team.away_xgc_per_90 || 0,
         away_xgc_per_90_score: team.away_xgc_per_90_score || 5,
+        // Form metrics (combined recent form)
+        recent_form: team.recent_form || 0,
+        recent_form_score: team.recent_form_score || 5,
         calculation_timestamp: new Date().toISOString()
       }));
 
@@ -163,6 +171,10 @@ export default async function handler(req, res) {
           home_goals_scored_per_90_score: 5,
           away_goals_scored_per_90: 0,
           away_goals_scored_per_90_score: 5,
+          home_goals_conceded_per_90: 0,
+          home_goals_conceded_per_90_score: 5,
+          away_goals_conceded_per_90: 0,
+          away_goals_conceded_per_90_score: 5,
           home_xg_per_90: 0,
           home_xg_per_90_score: 5,
           away_xg_per_90: 0,
@@ -171,6 +183,8 @@ export default async function handler(req, res) {
           home_xgc_per_90_score: 5,
           away_xgc_per_90: 0,
           away_xgc_per_90_score: 5,
+          recent_form: 0,
+          recent_form_score: 5,
           calculation_timestamp: new Date().toISOString()
         }));
 
@@ -214,8 +228,8 @@ export default async function handler(req, res) {
     console.log('   Sample ratings (top 3 by home goals per 90):');
     topTeams.forEach(team => {
       console.log(`   - ${team.team_name}:`);
-      console.log(`     Home: ${team.home_goals_scored_per_90} goals/90 (score ${team.home_goals_scored_per_90_score}), ${team.home_xg_per_90} xG/90 (score ${team.home_xg_per_90_score}) → Difficulty: ${team.home_difficulty}`);
-      console.log(`     Away: ${team.away_goals_scored_per_90} goals/90 (score ${team.away_goals_scored_per_90_score}), ${team.away_xg_per_90} xG/90 (score ${team.away_xg_per_90_score}) → Difficulty: ${team.away_difficulty}`);
+      console.log(`     Home: ${team.home_goals_scored_per_90} GF/90 (${team.home_goals_scored_per_90_score}), ${team.home_goals_conceded_per_90} GC/90 (${team.home_goals_conceded_per_90_score}), ${team.home_xg_per_90} xG/90 (${team.home_xg_per_90_score}), Form: ${team.recent_form} (${team.recent_form_score}) → Diff: ${team.home_difficulty}`);
+      console.log(`     Away: ${team.away_goals_scored_per_90} GF/90 (${team.away_goals_scored_per_90_score}), ${team.away_goals_conceded_per_90} GC/90 (${team.away_goals_conceded_per_90_score}), ${team.away_xg_per_90} xG/90 (${team.away_xg_per_90_score}), Form: ${team.recent_form} (${team.recent_form_score}) → Diff: ${team.away_difficulty}`);
     });
 
     return res.status(200).json({
@@ -231,13 +245,19 @@ export default async function handler(req, res) {
         games_played: t.games_played,
         home_games: t.home_games,
         away_games: t.away_games,
-        home_goals_per_90: t.home_goals_scored_per_90,
-        home_goals_score: t.home_goals_scored_per_90_score,
+        home_goals_scored_per_90: t.home_goals_scored_per_90,
+        home_goals_scored_score: t.home_goals_scored_per_90_score,
+        home_goals_conceded_per_90: t.home_goals_conceded_per_90,
+        home_goals_conceded_score: t.home_goals_conceded_per_90_score,
         home_xg_per_90: t.home_xg_per_90,
         home_xg_score: t.home_xg_per_90_score,
+        recent_form: t.recent_form,
+        recent_form_score: t.recent_form_score,
         home_difficulty: t.home_difficulty,
-        away_goals_per_90: t.away_goals_scored_per_90,
-        away_goals_score: t.away_goals_scored_per_90_score,
+        away_goals_scored_per_90: t.away_goals_scored_per_90,
+        away_goals_scored_score: t.away_goals_scored_per_90_score,
+        away_goals_conceded_per_90: t.away_goals_conceded_per_90,
+        away_goals_conceded_score: t.away_goals_conceded_per_90_score,
         away_xg_per_90: t.away_xg_per_90,
         away_xg_score: t.away_xg_per_90_score,
         away_difficulty: t.away_difficulty

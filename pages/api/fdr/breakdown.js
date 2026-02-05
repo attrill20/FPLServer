@@ -103,21 +103,37 @@ export default async function handler(req, res) {
       },
       metrics: {
         home: {
-          goals_per_90: parseFloat(calculation.home_goals_scored_per_90 || 0),
-          goals_per_90_score: parseInt(calculation.home_goals_scored_per_90_score || 5),
-          difficulty: parseInt(calculation.home_difficulty || 5)
+          goals_scored_per_90: parseFloat(calculation.home_goals_scored_per_90 || 0),
+          goals_scored_per_90_score: parseInt(calculation.home_goals_scored_per_90_score || 5),
+          goals_conceded_per_90: parseFloat(calculation.home_goals_conceded_per_90 || 0),
+          goals_conceded_per_90_score: parseInt(calculation.home_goals_conceded_per_90_score || 5),
+          xg_per_90: parseFloat(calculation.home_xg_per_90 || 0),
+          xg_per_90_score: parseInt(calculation.home_xg_per_90_score || 5),
+          xgc_per_90: parseFloat(calculation.home_xgc_per_90 || 0),
+          xgc_per_90_score: parseInt(calculation.home_xgc_per_90_score || 5),
+          difficulty: parseFloat(calculation.home_difficulty || 5)
         },
         away: {
-          goals_per_90: parseFloat(calculation.away_goals_scored_per_90 || 0),
-          goals_per_90_score: parseInt(calculation.away_goals_scored_per_90_score || 5),
-          difficulty: parseInt(calculation.away_difficulty || 5)
+          goals_scored_per_90: parseFloat(calculation.away_goals_scored_per_90 || 0),
+          goals_scored_per_90_score: parseInt(calculation.away_goals_scored_per_90_score || 5),
+          goals_conceded_per_90: parseFloat(calculation.away_goals_conceded_per_90 || 0),
+          goals_conceded_per_90_score: parseInt(calculation.away_goals_conceded_per_90_score || 5),
+          xg_per_90: parseFloat(calculation.away_xg_per_90 || 0),
+          xg_per_90_score: parseInt(calculation.away_xg_per_90_score || 5),
+          xgc_per_90: parseFloat(calculation.away_xgc_per_90 || 0),
+          xgc_per_90_score: parseInt(calculation.away_xgc_per_90_score || 5),
+          difficulty: parseFloat(calculation.away_difficulty || 5)
+        },
+        form: {
+          recent_form: parseFloat(calculation.recent_form || 0),
+          recent_form_score: parseInt(calculation.recent_form_score || 5)
         }
       },
       ratings: {
         home_difficulty: team.home_difficulty || calculation.home_difficulty || 5,
         away_difficulty: team.away_difficulty || calculation.away_difficulty || 5
       },
-      note: 'Simplified FDR focused on goals scored metrics. More factors to be added in future iterations.'
+      note: 'FDR calculation based on 5 factors (20% each): goals scored, goals conceded (inverted), xG, xGC (inverted), and recent form (last 5 games).'
     });
 
   } catch (error) {

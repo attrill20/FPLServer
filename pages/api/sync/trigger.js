@@ -19,11 +19,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Security: Verify admin token
+  // Security: Verify admin token OR Vercel cron secret
   const authHeader = req.headers.authorization;
+  const cronSecret = req.headers['x-vercel-cron-secret'];
   const expectedToken = `Bearer ${process.env.ADMIN_TOKEN}`;
 
-  if (!authHeader || authHeader !== expectedToken) {
+  const isAuthorized =
+    authHeader === expectedToken ||
+    cronSecret === process.env.CRON_SECRET;
+
+  if (!isAuthorized) {
     console.error('Unauthorized sync trigger attempt');
     return res.status(401).json({ error: 'Unauthorized' });
   }
