@@ -4,12 +4,6 @@
         "source": "/api/(.*)",
         "destination": "/api/$1"
       }
-    ],
-    "crons": [
-      {
-        "path": "/api/sync/trigger",
-        "schedule": "0 * * * *"
-      }
     ]
   }
   
