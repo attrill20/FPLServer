@@ -140,6 +140,36 @@ export default async function handler(req, res) {
         console.log(`  ✓ Stored ${calculationRecords.length} calculation records`);
       }
 
+      // Step 3.2: Store weekly snapshot for movers tracking
+      console.log('  → Storing weekly FDR snapshot...');
+      const snapshotRecords = fdrResults.map(team => ({
+        team_id: team.team_id,
+        gameweek_id: currentGW.id,
+        season_id: currentSeason.id,
+        home_difficulty: team.home_difficulty || 5.0,
+        away_difficulty: team.away_difficulty || 5.0,
+        home_goals_scored_per_90: team.home_goals_scored_per_90 || 0,
+        home_goals_conceded_per_90: team.home_goals_conceded_per_90 || 0,
+        away_goals_scored_per_90: team.away_goals_scored_per_90 || 0,
+        away_goals_conceded_per_90: team.away_goals_conceded_per_90 || 0,
+        home_xg_per_90: team.home_xg_per_90 || 0,
+        home_xgc_per_90: team.home_xgc_per_90 || 0,
+        away_xg_per_90: team.away_xg_per_90 || 0,
+        away_xgc_per_90: team.away_xgc_per_90 || 0,
+        recent_form: team.recent_form || 0,
+        recent_form_score: team.recent_form_score || 0
+      }));
+
+      const { error: snapshotError } = await supabase
+        .from('fdr_weekly_snapshots')
+        .upsert(snapshotRecords, { onConflict: 'team_id,gameweek_id' });
+
+      if (snapshotError) {
+        console.error('  ⚠ Failed to store weekly snapshot:', snapshotError.message);
+      } else {
+        console.log(`  ✓ Stored ${snapshotRecords.length} weekly snapshot records for GW ${currentGW.name}`);
+      }
+
       // Step 3.5: Validate all 20 teams present and backfill if needed
       console.log('  → Validating 20 teams present...');
       const { data: allTeams } = await supabase
