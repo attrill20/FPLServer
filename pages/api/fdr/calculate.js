@@ -124,6 +124,11 @@ export default async function handler(req, res) {
         // Form metrics (combined recent form)
         recent_form: team.recent_form || 0,
         recent_form_score: team.recent_form_score || 5,
+        // PPG recent metrics (points from last 5 home/away games)
+        home_ppg_recent: team.home_ppg_recent || 0,
+        home_ppg_recent_score: team.home_ppg_recent_score || 5,
+        away_ppg_recent: team.away_ppg_recent || 0,
+        away_ppg_recent_score: team.away_ppg_recent_score || 5,
         calculation_timestamp: new Date().toISOString()
       }));
 
@@ -157,7 +162,11 @@ export default async function handler(req, res) {
         away_xg_per_90: team.away_xg_per_90 || 0,
         away_xgc_per_90: team.away_xgc_per_90 || 0,
         recent_form: team.recent_form || 0,
-        recent_form_score: team.recent_form_score || 0
+        recent_form_score: team.recent_form_score || 0,
+        home_ppg_recent: team.home_ppg_recent || 0,
+        home_ppg_recent_score: team.home_ppg_recent_score || 0,
+        away_ppg_recent: team.away_ppg_recent || 0,
+        away_ppg_recent_score: team.away_ppg_recent_score || 0
       }));
 
       const { error: snapshotError } = await supabase
@@ -215,6 +224,10 @@ export default async function handler(req, res) {
           away_xgc_per_90_score: 5,
           recent_form: 0,
           recent_form_score: 5,
+          home_ppg_recent: 0,
+          home_ppg_recent_score: 5,
+          away_ppg_recent: 0,
+          away_ppg_recent_score: 5,
           calculation_timestamp: new Date().toISOString()
         }));
 
@@ -258,8 +271,8 @@ export default async function handler(req, res) {
     console.log('   Sample ratings (top 3 by home goals per 90):');
     topTeams.forEach(team => {
       console.log(`   - ${team.team_name}:`);
-      console.log(`     Home: ${team.home_goals_scored_per_90} GF/90 (${team.home_goals_scored_per_90_score}), ${team.home_goals_conceded_per_90} GC/90 (${team.home_goals_conceded_per_90_score}), ${team.home_xg_per_90} xG/90 (${team.home_xg_per_90_score}), Form: ${team.recent_form} (${team.recent_form_score}) → Diff: ${team.home_difficulty}`);
-      console.log(`     Away: ${team.away_goals_scored_per_90} GF/90 (${team.away_goals_scored_per_90_score}), ${team.away_goals_conceded_per_90} GC/90 (${team.away_goals_conceded_per_90_score}), ${team.away_xg_per_90} xG/90 (${team.away_xg_per_90_score}), Form: ${team.recent_form} (${team.recent_form_score}) → Diff: ${team.away_difficulty}`);
+      console.log(`     Home: ${team.home_goals_scored_per_90} GF/90 (${team.home_goals_scored_per_90_score}), ${team.home_goals_conceded_per_90} GC/90 (${team.home_goals_conceded_per_90_score}), ${team.home_xg_per_90} xG/90 (${team.home_xg_per_90_score}), Form: ${team.recent_form} (${team.recent_form_score}), PPG: ${team.home_ppg_recent} (${team.home_ppg_recent_score}) → Diff: ${team.home_difficulty}`);
+      console.log(`     Away: ${team.away_goals_scored_per_90} GF/90 (${team.away_goals_scored_per_90_score}), ${team.away_goals_conceded_per_90} GC/90 (${team.away_goals_conceded_per_90_score}), ${team.away_xg_per_90} xG/90 (${team.away_xg_per_90_score}), Form: ${team.recent_form} (${team.recent_form_score}), PPG: ${team.away_ppg_recent} (${team.away_ppg_recent_score}) → Diff: ${team.away_difficulty}`);
     });
 
     return res.status(200).json({
@@ -290,6 +303,10 @@ export default async function handler(req, res) {
         away_goals_conceded_score: t.away_goals_conceded_per_90_score,
         away_xg_per_90: t.away_xg_per_90,
         away_xg_score: t.away_xg_per_90_score,
+        home_ppg_recent: t.home_ppg_recent,
+        home_ppg_recent_score: t.home_ppg_recent_score,
+        away_ppg_recent: t.away_ppg_recent,
+        away_ppg_recent_score: t.away_ppg_recent_score,
         away_difficulty: t.away_difficulty
       }))
     });
