@@ -175,7 +175,7 @@ export default async function handler(req, res) {
                   creativity: gwData.creativity || 0,
                   threat: gwData.threat || 0,
                   ict_index: gwData.ict_index || 0
-                }, { onConflict: 'player_id,gameweek_id' });
+                }, { onConflict: 'player_id,gameweek_id,opponent_team' });
 
               if (error) {
                 console.error(`  ✗ Player ${playerId} GW${gwData.round}:`, error.message);
