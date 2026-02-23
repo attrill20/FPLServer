@@ -71,8 +71,12 @@ export default async function handler(req, res) {
     }
     const bootstrap = await bootstrapResponse.json();
 
-    const players = bootstrap.elements;
-    console.log(`  → Syncing ${players.length} players...`);
+    // Optional: filter to a specific team (e.g. ?team=20 for Wolves)
+    const teamFilter = req.query.team ? parseInt(req.query.team) : null;
+    const players = teamFilter
+      ? bootstrap.elements.filter(p => p.team === teamFilter)
+      : bootstrap.elements;
+    console.log(`  → Syncing ${players.length} players${teamFilter ? ` (team ${teamFilter})` : ''}...`);
 
     let updatedPlayers = 0;
     let errors = 0;
