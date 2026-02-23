@@ -166,7 +166,8 @@ export default async function handler(req, res) {
         home_ppg_recent: team.home_ppg_recent || 0,
         home_ppg_recent_score: team.home_ppg_recent_score || 0,
         away_ppg_recent: team.away_ppg_recent || 0,
-        away_ppg_recent_score: team.away_ppg_recent_score || 0
+        away_ppg_recent_score: team.away_ppg_recent_score || 0,
+        updated_at: new Date().toISOString()
       }));
 
       const { error: snapshotError } = await supabase
