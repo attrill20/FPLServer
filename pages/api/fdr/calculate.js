@@ -101,6 +101,11 @@ export default async function handler(req, res) {
         // Final difficulty ratings (1-10, can be decimal like 7.5)
         home_difficulty: team.home_difficulty || 5.0,
         away_difficulty: team.away_difficulty || 5.0,
+        // Attack/Defense sub-ratings
+        home_attack_rating: team.home_attack_rating || 5.0,
+        away_attack_rating: team.away_attack_rating || 5.0,
+        home_defense_rating: team.home_defense_rating || 5.0,
+        away_defense_rating: team.away_defense_rating || 5.0,
         // Goals scored metrics (home/away split)
         home_goals_scored_per_90: team.home_goals_scored_per_90 || 0,
         home_goals_scored_per_90_score: team.home_goals_scored_per_90_score || 5,
@@ -207,6 +212,10 @@ export default async function handler(req, res) {
           away_games: 0,
           home_difficulty: 5.0,
           away_difficulty: 5.0,
+          home_attack_rating: 5.0,
+          away_attack_rating: 5.0,
+          home_defense_rating: 5.0,
+          away_defense_rating: 5.0,
           home_goals_scored_per_90: 0,
           home_goals_scored_per_90_score: 5,
           away_goals_scored_per_90: 0,
@@ -254,6 +263,10 @@ export default async function handler(req, res) {
         .update({
           home_difficulty: team.home_difficulty,
           away_difficulty: team.away_difficulty,
+          home_attack_rating: team.home_attack_rating || 5.0,
+          away_attack_rating: team.away_attack_rating || 5.0,
+          home_defense_rating: team.home_defense_rating || 5.0,
+          away_defense_rating: team.away_defense_rating || 5.0,
           updated_at: new Date().toISOString()
         })
         .eq('id', team.team_id)
