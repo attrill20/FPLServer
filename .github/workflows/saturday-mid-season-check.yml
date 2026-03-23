@@ -1,0 +1,17 @@
+name: Saturday Mid-Season Update Check
+on:
+  schedule:
+    - cron: '0 10 * * 6'   # Every Saturday 10 AM UTC
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check and Generate Mid-Season Update
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST https://fpl-server-nine.vercel.app/api/mid-season-update/generate \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 30)
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
