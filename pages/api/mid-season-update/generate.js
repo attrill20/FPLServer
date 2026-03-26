@@ -44,14 +44,24 @@ export default async function handler(req, res) {
   console.log('Starting mid-season update check...');
 
   try {
-    // Step 1: Check for weekend fixtures (Saturday/Sunday)
+    // Step 0: Only allow execution on Saturdays (UTC)
     const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0=Sun, 6=Sat
+    if (dayOfWeek !== 6) {
+      console.log(`  Today is day ${dayOfWeek} (not Saturday) - skipping`);
+      return res.status(200).json({
+        success: true,
+        skipped: true,
+        reason: `Only runs on Saturdays (today is day ${dayOfWeek})`
+      });
+    }
+
+    // Step 1: Check for weekend fixtures (this Saturday/Sunday)
     const saturday = new Date(now);
-    saturday.setDate(now.getDate() - now.getDay() + 6); // This Saturday
-    saturday.setHours(0, 0, 0, 0);
+    saturday.setUTCHours(0, 0, 0, 0);
     const monday = new Date(saturday);
-    monday.setDate(saturday.getDate() + 2); // Monday after
-    monday.setHours(0, 0, 0, 0);
+    monday.setUTCDate(saturday.getUTCDate() + 2);
+    monday.setUTCHours(0, 0, 0, 0);
 
     console.log(`  Checking for fixtures between ${saturday.toISOString()} and ${monday.toISOString()}`);
 
