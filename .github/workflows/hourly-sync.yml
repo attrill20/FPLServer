@@ -11,47 +11,79 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Each endpoint called separately so they each get their own 60s timeout window
+      # Each endpoint called separately so they each get their own timeout window
       - name: Sync Players
         run: |
           echo "Step 1/4: Syncing players at $(date)"
-          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-            -X POST https://fpl-server-nine.vercel.app/api/sync/players \
-            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 60)
-          echo "HTTP Status: $HTTP_CODE"
-          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
-          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: Players sync failed"; exit 1; }
+          for attempt in 1 2; do
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+              -X POST https://fpl-server-nine.vercel.app/api/sync/players \
+              -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+              --max-time 60)
+            echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
+            cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+            [ "$HTTP_CODE" = "200" ] && break
+            if [ "$attempt" = "2" ]; then
+              echo "ERROR: Players sync failed after 2 attempts"
+              exit 1
+            fi
+            echo "Retrying in 10s..."
+            sleep 10
+          done
 
       - name: Sync Quick Stats
         run: |
           echo "Step 2/4: Syncing quick stats at $(date)"
-          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-            -X POST https://fpl-server-nine.vercel.app/api/sync/quick-stats \
-            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 60)
-          echo "HTTP Status: $HTTP_CODE"
-          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
-          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: Quick stats sync failed"; exit 1; }
+          for attempt in 1 2; do
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+              -X POST https://fpl-server-nine.vercel.app/api/sync/quick-stats \
+              -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+              --max-time 60)
+            echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
+            cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+            [ "$HTTP_CODE" = "200" ] && break
+            if [ "$attempt" = "2" ]; then
+              echo "ERROR: Quick stats sync failed after 2 attempts"
+              exit 1
+            fi
+            echo "Retrying in 10s..."
+            sleep 10
+          done
 
       - name: Sync FPL Difficulty
         run: |
           echo "Step 3/4: Syncing FPL difficulty at $(date)"
-          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-            -X POST https://fpl-server-nine.vercel.app/api/sync/fpl-difficulty \
-            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 60)
-          echo "HTTP Status: $HTTP_CODE"
-          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
-          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: FPL difficulty sync failed"; exit 1; }
+          for attempt in 1 2; do
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+              -X POST https://fpl-server-nine.vercel.app/api/sync/fpl-difficulty \
+              -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+              --max-time 60)
+            echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
+            cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+            [ "$HTTP_CODE" = "200" ] && break
+            if [ "$attempt" = "2" ]; then
+              echo "ERROR: FPL difficulty sync failed after 2 attempts"
+              exit 1
+            fi
+            echo "Retrying in 10s..."
+            sleep 10
+          done
 
       - name: Calculate FDR
         run: |
           echo "Step 4/4: Calculating FDR at $(date)"
-          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-            -X POST https://fpl-server-nine.vercel.app/api/fdr/calculate \
-            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 60)
-          echo "HTTP Status: $HTTP_CODE"
-          cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
-          [ "$HTTP_CODE" = "200" ] || { echo "ERROR: FDR calculation failed"; exit 1; }
+          for attempt in 1 2; do
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+              -X POST https://fpl-server-nine.vercel.app/api/fdr/calculate \
+              -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+              --max-time 60)
+            echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
+            cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
+            [ "$HTTP_CODE" = "200" ] && break
+            if [ "$attempt" = "2" ]; then
+              echo "ERROR: FDR calculation failed after 2 attempts"
+              exit 1
+            fi
+            echo "Retrying in 10s..."
+            sleep 10
+          done
