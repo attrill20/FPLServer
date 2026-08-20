@@ -52,7 +52,12 @@ export default async function handler(req, res) {
       .single();
 
     if (!currentGW) {
-      throw new Error('No current gameweek found');
+      console.log('ℹ️  No current gameweek — nothing to sync (between seasons or before the first deadline)');
+      return res.status(200).json({
+        success: true,
+        skipped: true,
+        message: 'No current gameweek — nothing to sync'
+      });
     }
 
     console.log(`  → Syncing players for ${currentGW.name} only...`);
