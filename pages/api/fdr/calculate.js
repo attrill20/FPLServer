@@ -61,6 +61,15 @@ export default async function handler(req, res) {
       .eq('is_current', true)
       .single();
 
+    if (!currentGW) {
+      console.log('ℹ️  No current gameweek — skipping FDR calculation (between seasons or before the first deadline)');
+      return res.status(200).json({
+        success: true,
+        skipped: true,
+        message: 'No current gameweek — skipping FDR calculation'
+      });
+    }
+
     // Step 1: Calculate FDR using SQL function
     console.log('  → Running calculate_team_fdr() function...');
     const { data: fdrResults, error: calcError } = await supabase
