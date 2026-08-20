@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
+import { getCurrentSeason, syncTeams, getGameweekIdByRound } from '../../../lib/fplSync.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -58,15 +59,33 @@ export default async function handler(req, res) {
     const players = bootstrap.elements;
     console.log(`  → Syncing ${players.length} players...`);
 
-    // Build the full batch — single upsert call instead of 809 individual ones
+    const currentSeason = await getCurrentSeason(supabase);
+
+    // FPL resets team ids every season on promotion/relegation — translate via
+    // the stable `code` field rather than trusting the raw team id.
+    const apiTeamIdToOurTeamId = await syncTeams(supabase, bootstrap);
+
+    // FPL also resets player element ids every season — match existing players
+    // by their stable `code` and keep their existing DB id; only brand-new
+    // players (transfers into the league) get a freshly assigned id.
+    const { data: dbPlayers, error: playersLoadError } = await supabase
+      .from('players')
+      .select('id, code');
+    if (playersLoadError) {
+      throw new Error(`Failed to load existing players: ${playersLoadError.message}`);
+    }
+    const dbPlayerByCode = new Map(dbPlayers.map(p => [p.code, p.id]));
+    let nextPlayerId = Math.max(...dbPlayers.map(p => p.id)) + 1;
+
     const playerRecords = players.map(player => ({
-      id: player.id,
+      id: dbPlayerByCode.get(player.code) ?? nextPlayerId++,
       code: player.code,
-      team_id: player.team,
+      team_id: apiTeamIdToOurTeamId.get(player.team),
       web_name: player.web_name,
       first_name: player.first_name,
       second_name: player.second_name,
-      element_type: player.element_type
+      element_type: player.element_type,
+      season_id: currentSeason.id
     }));
 
     const { error } = await supabase
@@ -78,36 +97,43 @@ export default async function handler(req, res) {
     }
 
     // Sync gameweek statuses from FPL API bootstrap events
+    const gwIdByRound = await getGameweekIdByRound(supabase, currentSeason.id);
     const apiCurrentGW = bootstrap.events.find(e => e.is_current);
     let gameweekAdvanced = null;
 
     if (apiCurrentGW) {
-      const { data: dbCurrentGW } = await supabase
-        .from('gameweeks')
-        .select('id, name')
-        .eq('is_current', true)
-        .single();
+      const targetGwId = gwIdByRound.get(apiCurrentGW.id);
 
-      if (dbCurrentGW && dbCurrentGW.id !== apiCurrentGW.id) {
-        console.log(`  → Advancing gameweek: ${dbCurrentGW.name} → Gameweek ${apiCurrentGW.id}`);
-
-        await supabase
-          .from('gameweeks')
-          .update({ is_current: false, finished: true })
-          .eq('id', dbCurrentGW.id);
-
-        await supabase
-          .from('gameweeks')
-          .update({ is_current: true, finished: apiCurrentGW.finished })
-          .eq('id', apiCurrentGW.id);
-
-        gameweekAdvanced = { from: dbCurrentGW.id, to: apiCurrentGW.id };
+      if (!targetGwId) {
+        console.warn(`  ⚠ No DB gameweek found for round ${apiCurrentGW.id} in season ${currentSeason.id}`);
       } else {
-        // Same gameweek — just keep finished flag in sync
-        await supabase
+        const { data: dbCurrentGW } = await supabase
           .from('gameweeks')
-          .update({ finished: apiCurrentGW.finished })
-          .eq('id', apiCurrentGW.id);
+          .select('id, name')
+          .eq('is_current', true)
+          .single();
+
+        if (dbCurrentGW && dbCurrentGW.id !== targetGwId) {
+          console.log(`  → Advancing gameweek: ${dbCurrentGW.name} → ${apiCurrentGW.name}`);
+
+          await supabase
+            .from('gameweeks')
+            .update({ is_current: false, finished: true })
+            .eq('id', dbCurrentGW.id);
+
+          await supabase
+            .from('gameweeks')
+            .update({ is_current: true, finished: apiCurrentGW.finished })
+            .eq('id', targetGwId);
+
+          gameweekAdvanced = { from: dbCurrentGW.id, to: targetGwId };
+        } else {
+          // Same gameweek — just keep finished flag in sync
+          await supabase
+            .from('gameweeks')
+            .update({ finished: apiCurrentGW.finished })
+            .eq('id', targetGwId);
+        }
       }
     }
 

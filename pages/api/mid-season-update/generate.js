@@ -119,10 +119,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // Step 4: Determine current GW (most recent finished)
+    // Step 4: Determine current GW (most recent finished, this season only)
     const { data: currentGWData, error: gwError } = await supabase
       .from('gameweeks')
       .select('id, name')
+      .eq('season_id', currentSeason.id)
       .eq('finished', true)
       .order('id', { ascending: false })
       .limit(1);

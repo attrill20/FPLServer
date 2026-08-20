@@ -14,6 +14,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
+import { getCurrentSeason, getPlayerIdByCode, getTeamIdByApiId, getGameweekIdByRound, parseRoundNumber } from '../../../lib/fplSync.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -56,6 +57,24 @@ export default async function handler(req, res) {
 
     console.log(`  → Syncing players for ${currentGW.name} only...`);
 
+    // FPL resets player/gameweek/team ids every season — bootstrap-static gives
+    // us the mapping we need to translate this season's raw ids into our stable
+    // DB ids (via `code`, since only `code` persists across seasons).
+    const currentSeason = await getCurrentSeason(supabase);
+    const bootstrapResponse = await fetch(`${FPL_API_BASE}/bootstrap-static/`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+    });
+    if (!bootstrapResponse.ok) {
+      throw new Error(`FPL API error: ${bootstrapResponse.status}`);
+    }
+    const bootstrap = await bootstrapResponse.json();
+
+    const currentRound = parseRoundNumber(currentGW.name);
+    const gwIdByRound = await getGameweekIdByRound(supabase, currentSeason.id);
+    const teamIdByApiId = await getTeamIdByApiId(supabase, bootstrap);
+    const codeToOurId = await getPlayerIdByCode(supabase);
+    const apiElementIdToCode = new Map(bootstrap.elements.map(e => [e.id, e.code]));
+
     // Fetch fixtures to find which players played in current gameweek
     const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`, {
       headers: {
@@ -73,15 +92,15 @@ export default async function handler(req, res) {
     const fixtures = await fixturesResponse.json();
 
     // Current gameweek only — weekly full sync covers historical backfill
-    const recentGWs = [currentGW.id];
+    const recentGWs = [currentRound];
     const recentFixtures = fixtures.filter(f =>
       f.finished &&
-      f.event === currentGW.id
+      f.event === currentRound
     );
 
     console.log(`  → Found ${recentFixtures.length} recent fixtures`);
 
-    // Extract unique player IDs who played in these fixtures
+    // Extract unique player IDs (this season's raw FPL element ids) who played
     const recentPlayerIds = new Set();
     recentFixtures.forEach(fixture => {
       if (fixture.stats) {
@@ -92,16 +111,21 @@ export default async function handler(req, res) {
       }
     });
 
-    // Check which players we already have data for this gameweek
+    // Check which players we already have data for this gameweek (our ids)
+    const ourGwId = gwIdByRound.get(currentRound);
     const { data: existingStats } = await supabase
       .from('player_gameweek_stats')
       .select('player_id')
-      .eq('gameweek_id', currentGW.id);
+      .eq('gameweek_id', ourGwId ?? currentGW.id);
 
     const existingPlayerIds = new Set((existingStats || []).map(s => s.player_id));
 
-    // Only fetch players we don't already have
-    const playerIds = Array.from(recentPlayerIds).filter(id => !existingPlayerIds.has(id));
+    // Only fetch players we don't already have (comparing in our-id space)
+    const playerIds = Array.from(recentPlayerIds).filter(rawId => {
+      const code = apiElementIdToCode.get(rawId);
+      const ourId = code != null ? codeToOurId.get(code) : null;
+      return ourId && !existingPlayerIds.has(ourId);
+    });
     console.log(`  → ${recentPlayerIds.size} players found, ${existingPlayerIds.size} already synced, ${playerIds.length} remaining...`);
 
     let updatedPlayers = 0;
@@ -141,12 +165,19 @@ export default async function handler(req, res) {
           // Update stats for each recent gameweek
           for (const gwData of history) {
             if (recentGWs.includes(gwData.round)) {
+              const ourPlayerId = codeToOurId.get(apiElementIdToCode.get(playerId));
+              const ourStatsGwId = gwIdByRound.get(gwData.round);
+              if (!ourPlayerId || !ourStatsGwId) {
+                console.warn(`  ⚠ Skipping player ${playerId} GW${gwData.round}: unresolved player or gameweek id`);
+                errors++;
+                continue;
+              }
               const { error } = await supabase
                 .from('player_gameweek_stats')
                 .upsert({
-                  player_id: playerId,
-                  gameweek_id: gwData.round,
-                  opponent_team: gwData.opponent_team,
+                  player_id: ourPlayerId,
+                  gameweek_id: ourStatsGwId,
+                  opponent_team: teamIdByApiId.get(gwData.opponent_team) ?? gwData.opponent_team,
                   was_home: gwData.was_home,
                   kickoff_time: gwData.kickoff_time,
                   total_points: gwData.total_points,

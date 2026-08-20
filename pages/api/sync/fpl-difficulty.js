@@ -9,6 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
+import { getTeamIdByApiId } from '../../../lib/fplSync.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -73,6 +74,17 @@ export default async function handler(req, res) {
 
     console.log(`  → Fetched ${fixtures.length} fixtures`);
 
+    // FPL resets team ids every season on promotion/relegation — translate
+    // this season's raw team ids into our stable DB ids via `code`.
+    const bootstrapResponse = await fetch(`${FPL_API_BASE}/bootstrap-static/`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+    });
+    if (!bootstrapResponse.ok) {
+      throw new Error(`FPL API error: ${bootstrapResponse.status}`);
+    }
+    const bootstrap = await bootstrapResponse.json();
+    const teamIdByApiId = await getTeamIdByApiId(supabase, bootstrap);
+
     // Build FPL difficulty ratings for each team
     const teamDifficulties = {};
 
@@ -108,6 +120,12 @@ export default async function handler(req, res) {
     let errors = 0;
 
     for (const [teamId, diffs] of Object.entries(teamDifficulties)) {
+      const ourTeamId = teamIdByApiId.get(parseInt(teamId));
+      if (!ourTeamId) {
+        console.warn(`  ⚠ Skipping team ${teamId}: no matching DB team`);
+        errors++;
+        continue;
+      }
       const { error } = await supabase
         .from('teams')
         .update({
@@ -115,7 +133,7 @@ export default async function handler(req, res) {
           fpl_away_difficulty: diffs.away || 3,
           updated_at: new Date().toISOString()
         })
-        .eq('id', parseInt(teamId));
+        .eq('id', ourTeamId);
 
       if (error) {
         console.error(`  ✗ Failed to update team ${teamId}:`, error.message);

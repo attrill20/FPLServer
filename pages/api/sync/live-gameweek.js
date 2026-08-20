@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
+import { getPlayerIdByCode, getTeamIdByApiId, parseRoundNumber } from '../../../lib/fplSync.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -102,8 +103,13 @@ export default async function handler(req, res) {
     }
     const bootstrap = await bootstrapResponse.json();
 
+    // FPL resets round/player/team ids every season — translate via `code`
+    const currentRound = parseRoundNumber(currentGW.name);
+    const teamIdByApiId = await getTeamIdByApiId(supabase, bootstrap);
+    const codeToOurId = await getPlayerIdByCode(supabase);
+
     // Step 3: Update gameweek status
-    const currentEvent = bootstrap.events.find(e => e.id === currentGW.id);
+    const currentEvent = bootstrap.events.find(e => e.id === currentRound);
     if (currentEvent) {
       await supabase
         .from('gameweeks')
@@ -141,13 +147,19 @@ export default async function handler(req, res) {
           const latestGW = history[history.length - 1];
 
           // Only update if the latest GW matches current GW
-          if (latestGW && latestGW.round === currentGW.id) {
+          if (latestGW && latestGW.round === currentRound) {
+            const ourPlayerId = codeToOurId.get(player.code);
+            if (!ourPlayerId) {
+              console.warn(`  ⚠ Skipping ${player.web_name}: no matching DB player for code ${player.code}`);
+              errors++;
+              return;
+            }
             const { error } = await supabase
               .from('player_gameweek_stats')
               .upsert({
-                player_id: player.id,
-                gameweek_id: latestGW.round,
-                opponent_team: latestGW.opponent_team,
+                player_id: ourPlayerId,
+                gameweek_id: currentGW.id,
+                opponent_team: teamIdByApiId.get(latestGW.opponent_team) ?? latestGW.opponent_team,
                 was_home: latestGW.was_home,
                 kickoff_time: latestGW.kickoff_time,
                 total_points: latestGW.total_points,
