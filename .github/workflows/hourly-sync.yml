@@ -15,7 +15,7 @@ jobs:
       - name: Sync Players
         run: |
           echo "Step 1/4: Syncing players at $(date)"
-          for attempt in 1 2; do
+          for attempt in 1 2 3 4; do
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/sync/players \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
@@ -23,18 +23,23 @@ jobs:
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
-            if [ "$attempt" = "2" ]; then
-              echo "ERROR: Players sync failed after 2 attempts"
+            if [ "$attempt" = "4" ]; then
+              echo "ERROR: Players sync failed after 4 attempts"
               exit 1
             fi
-            echo "Retrying in 10s..."
-            sleep 10
+            if [ "$HTTP_CODE" = "403" ]; then
+              echo "Got 403 (FPL API likely rate-limiting) - backing off 30s..."
+              sleep 30
+            else
+              echo "Retrying in 10s..."
+              sleep 10
+            fi
           done
 
       - name: Sync Quick Stats
         run: |
           echo "Step 2/4: Syncing quick stats at $(date)"
-          for attempt in 1 2; do
+          for attempt in 1 2 3 4; do
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/sync/quick-stats \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
@@ -42,18 +47,23 @@ jobs:
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
-            if [ "$attempt" = "2" ]; then
-              echo "ERROR: Quick stats sync failed after 2 attempts"
+            if [ "$attempt" = "4" ]; then
+              echo "ERROR: Quick stats sync failed after 4 attempts"
               exit 1
             fi
-            echo "Retrying in 10s..."
-            sleep 10
+            if [ "$HTTP_CODE" = "403" ]; then
+              echo "Got 403 (FPL API likely rate-limiting) - backing off 30s..."
+              sleep 30
+            else
+              echo "Retrying in 10s..."
+              sleep 10
+            fi
           done
 
       - name: Sync FPL Difficulty
         run: |
           echo "Step 3/4: Syncing FPL difficulty at $(date)"
-          for attempt in 1 2; do
+          for attempt in 1 2 3 4; do
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/sync/fpl-difficulty \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
@@ -61,18 +71,23 @@ jobs:
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
-            if [ "$attempt" = "2" ]; then
-              echo "ERROR: FPL difficulty sync failed after 2 attempts"
+            if [ "$attempt" = "4" ]; then
+              echo "ERROR: FPL difficulty sync failed after 4 attempts"
               exit 1
             fi
-            echo "Retrying in 10s..."
-            sleep 10
+            if [ "$HTTP_CODE" = "403" ]; then
+              echo "Got 403 (FPL API likely rate-limiting) - backing off 30s..."
+              sleep 30
+            else
+              echo "Retrying in 10s..."
+              sleep 10
+            fi
           done
 
       - name: Calculate FDR
         run: |
           echo "Step 4/4: Calculating FDR at $(date)"
-          for attempt in 1 2; do
+          for attempt in 1 2 3 4; do
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/fdr/calculate \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
@@ -80,10 +95,15 @@ jobs:
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
-            if [ "$attempt" = "2" ]; then
-              echo "ERROR: FDR calculation failed after 2 attempts"
+            if [ "$attempt" = "4" ]; then
+              echo "ERROR: FDR calculation failed after 4 attempts"
               exit 1
             fi
-            echo "Retrying in 10s..."
-            sleep 10
+            if [ "$HTTP_CODE" = "403" ]; then
+              echo "Got 403 (FPL API likely rate-limiting) - backing off 30s..."
+              sleep 30
+            else
+              echo "Retrying in 10s..."
+              sleep 10
+            fi
           done
