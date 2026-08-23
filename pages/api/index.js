@@ -1,4 +1,34 @@
 import fetch from 'isomorphic-unfetch';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+// Durable fallback, on top of the in-memory cache below: survives cold
+// starts and redeploys, so a sustained FPL block doesn't wipe out the last
+// known-good response the way the in-memory cache does.
+async function getDurableCache(key) {
+  const { data, error } = await supabase
+    .from('api_cache')
+    .select('data')
+    .eq('endpoint', key)
+    .single();
+  if (error) return null;
+  return data?.data ?? null;
+}
+
+async function setDurableCache(key, data) {
+  try {
+    const { error } = await supabase
+      .from('api_cache')
+      .upsert({ endpoint: key, data, updated_at: new Date().toISOString() }, { onConflict: 'endpoint' });
+    if (error) console.error('Failed to persist durable cache:', error);
+  } catch (error) {
+    console.error('Failed to persist durable cache:', error);
+  }
+}
 
 // In-memory cache: { [cacheKey]: { data, timestamp } }
 const cache = {};
@@ -89,11 +119,19 @@ export default async (req, res) => {
         console.error('Failed to fetch data, response status:', response.status);
 
         // FPL is likely bot-blocking us - serve stale data rather than
-        // breaking the app if we have anything cached at all.
+        // breaking the app if we have anything cached at all. In-memory
+        // first (fast), then the durable Supabase cache (survives cold
+        // starts and redeploys, which the in-memory cache doesn't).
         const staleData = getStale(cacheKey);
         if (staleData) {
           res.setHeader('X-Cache', 'STALE');
           return res.status(200).json(staleData);
+        }
+
+        const durableData = await getDurableCache(cacheKey);
+        if (durableData) {
+          res.setHeader('X-Cache', 'STALE-DB');
+          return res.status(200).json(durableData);
         }
 
         return res.status(response.status).json({ error: 'Failed to fetch data' });
@@ -101,8 +139,9 @@ export default async (req, res) => {
 
       const responseData = await response.json();
 
-      // Store in cache
+      // Store in both caches
       setCache(cacheKey, responseData);
+      await setDurableCache(cacheKey, responseData);
 
       res.setHeader('X-Cache', 'MISS');
       res.status(200).json(responseData);
