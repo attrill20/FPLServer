@@ -107,26 +107,30 @@ export default async function handler(req, res) {
       if (!targetGwId) {
         console.warn(`  ⚠ No DB gameweek found for round ${apiCurrentGW.id} in season ${currentSeason.id}`);
       } else {
+        // maybeSingle (not single) — zero rows is a valid state (e.g. right
+        // after a season rollover) and must not be treated as "no change needed"
         const { data: dbCurrentGW } = await supabase
           .from('gameweeks')
           .select('id, name')
           .eq('is_current', true)
-          .single();
+          .maybeSingle();
 
-        if (dbCurrentGW && dbCurrentGW.id !== targetGwId) {
-          console.log(`  → Advancing gameweek: ${dbCurrentGW.name} → ${apiCurrentGW.name}`);
+        if (!dbCurrentGW || dbCurrentGW.id !== targetGwId) {
+          console.log(`  → Advancing gameweek: ${dbCurrentGW?.name ?? '(none)'} → ${apiCurrentGW.name}`);
 
-          await supabase
-            .from('gameweeks')
-            .update({ is_current: false, finished: true })
-            .eq('id', dbCurrentGW.id);
+          if (dbCurrentGW) {
+            await supabase
+              .from('gameweeks')
+              .update({ is_current: false, finished: true })
+              .eq('id', dbCurrentGW.id);
+          }
 
           await supabase
             .from('gameweeks')
             .update({ is_current: true, finished: apiCurrentGW.finished })
             .eq('id', targetGwId);
 
-          gameweekAdvanced = { from: dbCurrentGW.id, to: targetGwId };
+          gameweekAdvanced = { from: dbCurrentGW?.id ?? null, to: targetGwId };
         } else {
           // Same gameweek — just keep finished flag in sync
           await supabase

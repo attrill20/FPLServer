@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       .from('gameweeks')
       .select('id, name, finished')
       .eq('is_current', true)
-      .single();
+      .maybeSingle();
 
     if (gwError) {
       throw new Error(`Failed to get current gameweek: ${gwError.message}`);
@@ -108,15 +108,16 @@ export default async function handler(req, res) {
     const teamIdByApiId = await getTeamIdByApiId(supabase, bootstrap);
     const codeToOurId = await getPlayerIdByCode(supabase);
 
-    // Step 3: Update gameweek status
+    // Step 3: Sync finished status only — ownership of `is_current` belongs
+    // to the Step 1b advance logic above (which always pairs clearing the old
+    // gameweek with setting the new one). Overwriting is_current here from a
+    // raw bootstrap lookup risks clearing it with nothing else set true, e.g.
+    // when this runs just before FPL itself flips the current event.
     const currentEvent = bootstrap.events.find(e => e.id === currentRound);
     if (currentEvent) {
       await supabase
         .from('gameweeks')
-        .update({
-          finished: currentEvent.finished,
-          is_current: currentEvent.is_current
-        })
+        .update({ finished: currentEvent.finished })
         .eq('id', currentGW.id);
     }
 
