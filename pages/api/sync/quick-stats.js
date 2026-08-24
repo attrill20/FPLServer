@@ -97,9 +97,13 @@ export default async function handler(req, res) {
     const fixtures = await fixturesResponse.json();
 
     // Current gameweek only — weekly full sync covers historical backfill
+    // finished_provisional (not finished) — FPL populates real stats as soon
+    // as a match ends, but doesn't flip `finished` until its official data
+    // check runs, which can lag a day or more (bonus points may still be 0
+    // until then; a later sync naturally overwrites with the final values)
     const recentGWs = [currentRound];
     const recentFixtures = fixtures.filter(f =>
-      f.finished &&
+      f.finished_provisional &&
       f.event === currentRound
     );
 
