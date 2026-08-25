@@ -25,8 +25,37 @@ const round2 = (n) => Math.round(n * 100) / 100;
 // uses for established teams.
 const BASELINE_PRIOR_GAMES = 6;
 
-function shrinkTowardBaseline(baseline, computed, gamesPlayed) {
-  return (baseline * BASELINE_PRIOR_GAMES + computed * gamesPlayed) / (BASELINE_PRIOR_GAMES + gamesPlayed);
+function shrinkTowardBaseline(baseline, computed, gamesPlayed, priorGames = BASELINE_PRIOR_GAMES) {
+  return (baseline * priorGames + computed * gamesPlayed) / (priorGames + gamesPlayed);
+}
+
+async function rateMetric(metric, value) {
+  const { data, error } = await supabase.rpc('get_difficulty_rating', {
+    raw_value: value,
+    metric_name_param: metric
+  });
+  if (error) throw new Error(`get_difficulty_rating(${metric}) failed: ${error.message}`);
+  return data;
+}
+
+/** Converts a stats row (total_goals/total_xg/total_goals_conceded/total_xgc/games_played) into attack/defense/difficulty scores via the shared benchmarks. */
+async function scoreStats(stats) {
+  const perNinety = (total) => total / stats.games_played;
+  const goalsPer90 = perNinety(stats.total_goals);
+  const xgPer90 = perNinety(stats.total_xg);
+  const concededPer90 = perNinety(stats.total_goals_conceded);
+  const xgcPer90 = perNinety(stats.total_xgc);
+
+  const [goalsScore, xgScore, concededScore, xgcScore] = await Promise.all([
+    rateMetric('goals_per_90', goalsPer90),
+    rateMetric('xg_per_90', xgPer90),
+    rateMetric('goals_conceded_per_90', concededPer90),
+    rateMetric('xgc_per_90', xgcPer90),
+  ]);
+
+  const attack = (goalsScore + xgScore) / 2;
+  const defense = (concededScore + xgcScore) / 2;
+  return { attack, defense, difficulty: (attack + defense) / 2, goalsPer90, xgPer90, concededPer90, xgcPer90, goalsScore, xgScore, concededScore, xgcScore };
 }
 
 /**
@@ -35,45 +64,42 @@ function shrinkTowardBaseline(baseline, computed, gamesPlayed) {
  * it requires), compute a lightweight bridge rating directly from their real
  * per-90 stats so far via the same get_difficulty_rating() benchmarks the main
  * calculation uses, shrunk toward the season-start baseline by games played.
- * Returns the pure baseline untouched for a venue with zero games so far.
+ *
+ * Blends in the team's overall (both-venues) form so a result at one venue
+ * also nudges the other — a team that's playing well should look a little
+ * scarier away too, not just at the venue where they've actually played —
+ * but at half the weight of a direct same-venue observation, and pure overall
+ * form (no venue-specific blend) when there's no data at this venue at all.
  */
-async function computeBridgeRating(teamId, venueStats, baseline) {
-  const stats = venueStats.find(s => s.team_id === teamId);
-  if (!stats || !stats.games_played) {
+async function computeBridgeRating(teamId, venueStats, overallStats, baseline) {
+  const overall = overallStats.find(s => s.team_id === teamId);
+  if (!overall || !overall.games_played) {
     return { difficulty: baseline, attack: baseline, defense: baseline, raw: null };
   }
+  const overallScore = await scoreStats(overall);
 
-  const perNinety = (total) => total / stats.games_played;
-  const rate = async (metric, value) => {
-    const { data, error } = await supabase.rpc('get_difficulty_rating', {
-      raw_value: value,
-      metric_name_param: metric
-    });
-    if (error) throw new Error(`get_difficulty_rating(${metric}) failed: ${error.message}`);
-    return data;
-  };
+  const venue = venueStats.find(s => s.team_id === teamId);
+  if (!venue || !venue.games_played) {
+    // No data at this specific venue — lean on overall form only, and shrink
+    // more conservatively (double the prior) since it's an indirect signal.
+    return {
+      difficulty: shrinkTowardBaseline(baseline, overallScore.difficulty, overall.games_played, BASELINE_PRIOR_GAMES * 2),
+      attack: shrinkTowardBaseline(baseline, overallScore.attack, overall.games_played, BASELINE_PRIOR_GAMES * 2),
+      defense: shrinkTowardBaseline(baseline, overallScore.defense, overall.games_played, BASELINE_PRIOR_GAMES * 2),
+      raw: null
+    };
+  }
 
-  const goalsPer90 = perNinety(stats.total_goals);
-  const xgPer90 = perNinety(stats.total_xg);
-  const concededPer90 = perNinety(stats.total_goals_conceded);
-  const xgcPer90 = perNinety(stats.total_xgc);
-
-  const [goalsScore, xgScore, concededScore, xgcScore] = await Promise.all([
-    rate('goals_per_90', goalsPer90),
-    rate('xg_per_90', xgPer90),
-    rate('goals_conceded_per_90', concededPer90),
-    rate('xgc_per_90', xgcPer90),
-  ]);
-
-  const attack = (goalsScore + xgScore) / 2;
-  const defense = (concededScore + xgcScore) / 2;
+  const venueScore = await scoreStats(venue);
+  const attack = venueScore.attack * 0.7 + overallScore.attack * 0.3;
+  const defense = venueScore.defense * 0.7 + overallScore.defense * 0.3;
   const difficulty = (attack + defense) / 2;
 
   return {
-    difficulty: shrinkTowardBaseline(baseline, difficulty, stats.games_played),
-    attack: shrinkTowardBaseline(baseline, attack, stats.games_played),
-    defense: shrinkTowardBaseline(baseline, defense, stats.games_played),
-    raw: { goalsPer90, xgPer90, concededPer90, xgcPer90, goalsScore, xgScore, concededScore, xgcScore, gamesPlayed: stats.games_played }
+    difficulty: shrinkTowardBaseline(baseline, difficulty, venue.games_played),
+    attack: shrinkTowardBaseline(baseline, attack, venue.games_played),
+    defense: shrinkTowardBaseline(baseline, defense, venue.games_played),
+    raw: { goalsPer90: venueScore.goalsPer90, xgPer90: venueScore.xgPer90, concededPer90: venueScore.concededPer90, xgcPer90: venueScore.xgcPer90, goalsScore: venueScore.goalsScore, xgScore: venueScore.xgScore, concededScore: venueScore.concededScore, xgcScore: venueScore.xgcScore, gamesPlayed: venue.games_played }
   };
 }
 
@@ -283,19 +309,25 @@ export default async function handler(req, res) {
         // even before calculate_team_fdr() itself starts covering them.
         console.log(`  ⚠ Computing bridge ratings for ${missingTeams.length} team(s) calculate_team_fdr() hasn't picked up yet`);
 
-        const [{ data: homeStats, error: homeStatsError }, { data: awayStats, error: awayStatsError }] = await Promise.all([
+        const [
+          { data: homeStats, error: homeStatsError },
+          { data: awayStats, error: awayStatsError },
+          { data: overallStats, error: overallStatsError }
+        ] = await Promise.all([
           supabase.rpc('get_team_home_stats'),
           supabase.rpc('get_team_away_stats'),
+          supabase.rpc('get_team_xg_stats'),
         ]);
         if (homeStatsError) console.error('  ⚠ get_team_home_stats failed:', homeStatsError.message);
         if (awayStatsError) console.error('  ⚠ get_team_away_stats failed:', awayStatsError.message);
+        if (overallStatsError) console.error('  ⚠ get_team_xg_stats failed:', overallStatsError.message);
 
         const backfillRecords = [];
         const teamsBackfill = [];
 
         for (const t of missingTeams) {
-          const home = await computeBridgeRating(t.id, homeStats || [], 3.0);
-          const away = await computeBridgeRating(t.id, awayStats || [], 2.0);
+          const home = await computeBridgeRating(t.id, homeStats || [], overallStats || [], 3.0);
+          const away = await computeBridgeRating(t.id, awayStats || [], overallStats || [], 2.0);
 
           backfillRecords.push({
             team_id: t.id,
@@ -372,6 +404,38 @@ export default async function handler(req, res) {
           const teamsBackfillError = teamsBackfillResults.find(r => r.error)?.error;
           if (teamsBackfillError) {
             console.error('  ⚠ Teams table backfill failed:', teamsBackfillError.message);
+          }
+
+          // Also write a weekly snapshot for these teams — Step 3.2 above only
+          // covers fdrResults, so without this a backfilled team would never
+          // get a baseline for next week's mover comparison to diff against.
+          const snapshotBackfill = backfillRecords.map(r => ({
+            team_id: r.team_id,
+            gameweek_id: currentGW.id,
+            season_id: currentSeason.id,
+            home_difficulty: r.home_difficulty,
+            away_difficulty: r.away_difficulty,
+            home_goals_scored_per_90: r.home_goals_scored_per_90,
+            home_goals_conceded_per_90: r.home_goals_conceded_per_90,
+            away_goals_scored_per_90: r.away_goals_scored_per_90,
+            away_goals_conceded_per_90: r.away_goals_conceded_per_90,
+            home_xg_per_90: r.home_xg_per_90,
+            home_xgc_per_90: r.home_xgc_per_90,
+            away_xg_per_90: r.away_xg_per_90,
+            away_xgc_per_90: r.away_xgc_per_90,
+            recent_form: r.recent_form,
+            recent_form_score: r.recent_form_score,
+            home_ppg_recent: r.home_ppg_recent,
+            home_ppg_recent_score: r.home_ppg_recent_score,
+            away_ppg_recent: r.away_ppg_recent,
+            away_ppg_recent_score: r.away_ppg_recent_score,
+            updated_at: new Date().toISOString()
+          }));
+          const { error: snapshotBackfillError } = await supabase
+            .from('fdr_weekly_snapshots')
+            .upsert(snapshotBackfill, { onConflict: 'team_id,gameweek_id' });
+          if (snapshotBackfillError) {
+            console.error('  ⚠ Snapshot backfill failed:', snapshotBackfillError.message);
           }
         }
       } else {
