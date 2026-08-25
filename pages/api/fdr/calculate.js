@@ -361,9 +361,15 @@ export default async function handler(req, res) {
           // Also push the same ratings onto the teams table directly — Step 4
           // below only updates teams present in fdrResults, so without this a
           // backfilled team's home_difficulty/away_difficulty would stay null.
-          const { error: teamsBackfillError } = await supabase
-            .from('teams')
-            .upsert(teamsBackfill, { onConflict: 'id' });
+          // Must be .update() per row, not .upsert() — an upsert's insert path
+          // still validates NOT NULL columns (code/name/short_name) even when
+          // it's only ever going to hit the update branch for an existing id.
+          const teamsBackfillResults = await Promise.all(
+            teamsBackfill.map(({ id, ...fields }) =>
+              supabase.from('teams').update(fields).eq('id', id)
+            )
+          );
+          const teamsBackfillError = teamsBackfillResults.find(r => r.error)?.error;
           if (teamsBackfillError) {
             console.error('  ⚠ Teams table backfill failed:', teamsBackfillError.message);
           }
