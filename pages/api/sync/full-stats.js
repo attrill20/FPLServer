@@ -127,6 +127,12 @@ export default async function handler(req, res) {
             return;
           }
 
+          // Stamp the player's team as of *now* rather than relying on a later
+          // join to players.team_id — that join reflects whichever club a
+          // player is CURRENTLY registered to, which silently corrupts
+          // historical rows once a player transfers elsewhere.
+          const ourTeamId = teamIdByApiId.get(player.team) ?? null;
+
           // Update stats for each gameweek
           for (const gwData of relevantHistory) {
             const ourStatsGwId = gwIdByRound.get(gwData.round);
@@ -140,6 +146,7 @@ export default async function handler(req, res) {
               .upsert({
                 player_id: ourPlayerId,
                 gameweek_id: ourStatsGwId,
+                team_id: ourTeamId,
                 opponent_team: teamIdByApiId.get(gwData.opponent_team) ?? gwData.opponent_team,
                 was_home: gwData.was_home,
                 kickoff_time: gwData.kickoff_time,

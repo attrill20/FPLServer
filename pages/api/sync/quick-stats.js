@@ -79,6 +79,11 @@ export default async function handler(req, res) {
     const teamIdByApiId = await getTeamIdByApiId(supabase, bootstrap);
     const codeToOurId = await getPlayerIdByCode(supabase);
     const apiElementIdToCode = new Map(bootstrap.elements.map(e => [e.id, e.code]));
+    // Stamp each row with the player's team as of *now* rather than relying on
+    // a later join to players.team_id — that join reflects whichever club a
+    // player is CURRENTLY registered to, which silently corrupts historical
+    // rows once a player transfers elsewhere.
+    const apiElementIdToTeamId = new Map(bootstrap.elements.map(e => [e.id, teamIdByApiId.get(e.team)]));
 
     // Fetch fixtures to find which players played in current gameweek
     const fixturesResponse = await fetch(`${FPL_API_BASE}/fixtures/`, {
@@ -186,6 +191,7 @@ export default async function handler(req, res) {
                 .upsert({
                   player_id: ourPlayerId,
                   gameweek_id: ourStatsGwId,
+                  team_id: apiElementIdToTeamId.get(playerId) ?? null,
                   opponent_team: teamIdByApiId.get(gwData.opponent_team) ?? gwData.opponent_team,
                   was_home: gwData.was_home,
                   kickoff_time: gwData.kickoff_time,
