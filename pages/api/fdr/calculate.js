@@ -194,13 +194,16 @@ export default async function handler(req, res) {
         console.log(`  ✓ Stored ${snapshotRecords.length} weekly snapshot records for GW ${currentGW.name}`);
       }
 
-      // Step 3.5: Validate all 20 teams present and backfill if needed
-      console.log('  → Validating 20 teams present...');
+      // Step 3.5: Validate every team is present and backfill if needed.
+      // calculate_team_fdr() only returns teams with enough historical data to
+      // compute a rating from — newly promoted teams (assigned fresh ids beyond
+      // the original 20 by syncTeams) never appear in its output, so this must
+      // check against the *actual* team roster, not a hardcoded count.
+      console.log('  → Validating all teams present...');
       const { data: allTeams } = await supabase
         .from('teams')
         .select('id')
-        .order('id')
-        .limit(20);
+        .order('id');
 
       const { data: calculatedTeams } = await supabase
         .from('team_fdr_calculations')
@@ -211,7 +214,10 @@ export default async function handler(req, res) {
       );
 
       if (missingTeams.length > 0) {
-        console.log(`  ⚠ Backfilling ${missingTeams.length} missing teams with default values`);
+        // Season-start baseline for teams with no computed rating yet (typically
+        // newly promoted clubs): home 3.0 / away 2.0, reflecting an easier-than-
+        // average opponent until real performance data can tweak it from there.
+        console.log(`  ⚠ Backfilling ${missingTeams.length} missing teams with season-start default (3.0 home / 2.0 away)`);
         const backfillRecords = missingTeams.map(t => ({
           team_id: t.id,
           season_id: currentSeason.id,
@@ -219,12 +225,12 @@ export default async function handler(req, res) {
           games_played: 0,
           home_games: 0,
           away_games: 0,
-          home_difficulty: 5.0,
-          away_difficulty: 5.0,
-          home_attack_rating: 5.0,
-          away_attack_rating: 5.0,
-          home_defense_rating: 5.0,
-          away_defense_rating: 5.0,
+          home_difficulty: 3.0,
+          away_difficulty: 2.0,
+          home_attack_rating: 3.0,
+          away_attack_rating: 2.0,
+          home_defense_rating: 3.0,
+          away_defense_rating: 2.0,
           home_goals_scored_per_90: 0,
           home_goals_scored_per_90_score: 5,
           away_goals_scored_per_90: 0,
@@ -258,9 +264,29 @@ export default async function handler(req, res) {
           console.error('  ⚠ Backfill failed:', backfillError.message);
         } else {
           console.log(`  ✓ Backfilled ${missingTeams.length} teams`);
+
+          // Also push the same baseline onto the teams table directly — Step 4
+          // below only updates teams present in fdrResults, so without this a
+          // backfilled team's home_difficulty/away_difficulty would stay null.
+          const teamsBackfill = missingTeams.map(t => ({
+            id: t.id,
+            home_difficulty: 3.0,
+            away_difficulty: 2.0,
+            home_attack_rating: 3.0,
+            away_attack_rating: 2.0,
+            home_defense_rating: 3.0,
+            away_defense_rating: 2.0,
+            updated_at: new Date().toISOString()
+          }));
+          const { error: teamsBackfillError } = await supabase
+            .from('teams')
+            .upsert(teamsBackfill, { onConflict: 'id' });
+          if (teamsBackfillError) {
+            console.error('  ⚠ Teams table backfill failed:', teamsBackfillError.message);
+          }
         }
       } else {
-        console.log(`  ✓ All 20 teams present`);
+        console.log('  ✓ All teams present');
       }
     }
 
