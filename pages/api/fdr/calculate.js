@@ -16,6 +16,67 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+const round2 = (n) => Math.round(n * 100) / 100;
+
+// Prior "weight" (in games) given to the season-start baseline when blending in
+// real observed performance for teams calculate_team_fdr() hasn't picked up yet.
+// Chosen so a single game nudges the rating slightly rather than swinging it —
+// same spirit as the 8-game/5-game recency windows calculate_team_fdr() itself
+// uses for established teams.
+const BASELINE_PRIOR_GAMES = 6;
+
+function shrinkTowardBaseline(baseline, computed, gamesPlayed) {
+  return (baseline * BASELINE_PRIOR_GAMES + computed * gamesPlayed) / (BASELINE_PRIOR_GAMES + gamesPlayed);
+}
+
+/**
+ * For a team calculate_team_fdr() doesn't yet return a rating for (newly
+ * promoted clubs with too little history to clear whatever sample-size floor
+ * it requires), compute a lightweight bridge rating directly from their real
+ * per-90 stats so far via the same get_difficulty_rating() benchmarks the main
+ * calculation uses, shrunk toward the season-start baseline by games played.
+ * Returns the pure baseline untouched for a venue with zero games so far.
+ */
+async function computeBridgeRating(teamId, venueStats, baseline) {
+  const stats = venueStats.find(s => s.team_id === teamId);
+  if (!stats || !stats.games_played) {
+    return { difficulty: baseline, attack: baseline, defense: baseline, raw: null };
+  }
+
+  const perNinety = (total) => total / stats.games_played;
+  const rate = async (metric, value) => {
+    const { data, error } = await supabase.rpc('get_difficulty_rating', {
+      raw_value: value,
+      metric_name_param: metric
+    });
+    if (error) throw new Error(`get_difficulty_rating(${metric}) failed: ${error.message}`);
+    return data;
+  };
+
+  const goalsPer90 = perNinety(stats.total_goals);
+  const xgPer90 = perNinety(stats.total_xg);
+  const concededPer90 = perNinety(stats.total_goals_conceded);
+  const xgcPer90 = perNinety(stats.total_xgc);
+
+  const [goalsScore, xgScore, concededScore, xgcScore] = await Promise.all([
+    rate('goals_per_90', goalsPer90),
+    rate('xg_per_90', xgPer90),
+    rate('goals_conceded_per_90', concededPer90),
+    rate('xgc_per_90', xgcPer90),
+  ]);
+
+  const attack = (goalsScore + xgScore) / 2;
+  const defense = (concededScore + xgcScore) / 2;
+  const difficulty = (attack + defense) / 2;
+
+  return {
+    difficulty: shrinkTowardBaseline(baseline, difficulty, stats.games_played),
+    attack: shrinkTowardBaseline(baseline, attack, stats.games_played),
+    defense: shrinkTowardBaseline(baseline, defense, stats.games_played),
+    raw: { goalsPer90, xgPer90, concededPer90, xgcPer90, goalsScore, xgScore, concededScore, xgcScore, gamesPlayed: stats.games_played }
+  };
+}
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -216,45 +277,77 @@ export default async function handler(req, res) {
       if (missingTeams.length > 0) {
         // Season-start baseline for teams with no computed rating yet (typically
         // newly promoted clubs): home 3.0 / away 2.0, reflecting an easier-than-
-        // average opponent until real performance data can tweak it from there.
-        console.log(`  ⚠ Backfilling ${missingTeams.length} missing teams with season-start default (3.0 home / 2.0 away)`);
-        const backfillRecords = missingTeams.map(t => ({
-          team_id: t.id,
-          season_id: currentSeason.id,
-          gameweek_calculated: currentGW.id,
-          games_played: 0,
-          home_games: 0,
-          away_games: 0,
-          home_difficulty: 3.0,
-          away_difficulty: 2.0,
-          home_attack_rating: 3.0,
-          away_attack_rating: 2.0,
-          home_defense_rating: 3.0,
-          away_defense_rating: 2.0,
-          home_goals_scored_per_90: 0,
-          home_goals_scored_per_90_score: 5,
-          away_goals_scored_per_90: 0,
-          away_goals_scored_per_90_score: 5,
-          home_goals_conceded_per_90: 0,
-          home_goals_conceded_per_90_score: 5,
-          away_goals_conceded_per_90: 0,
-          away_goals_conceded_per_90_score: 5,
-          home_xg_per_90: 0,
-          home_xg_per_90_score: 5,
-          away_xg_per_90: 0,
-          away_xg_per_90_score: 5,
-          home_xgc_per_90: 0,
-          home_xgc_per_90_score: 5,
-          away_xgc_per_90: 0,
-          away_xgc_per_90_score: 5,
-          recent_form: 0,
-          recent_form_score: 5,
-          home_ppg_recent: 0,
-          home_ppg_recent_score: 5,
-          away_ppg_recent: 0,
-          away_ppg_recent_score: 5,
-          calculation_timestamp: new Date().toISOString()
-        }));
+        // average opponent. Once they've actually played, blend in their real
+        // per-90 numbers (via computeBridgeRating) rather than leaving them
+        // static — a team that wins should nudge upward, one that loses down,
+        // even before calculate_team_fdr() itself starts covering them.
+        console.log(`  ⚠ Computing bridge ratings for ${missingTeams.length} team(s) calculate_team_fdr() hasn't picked up yet`);
+
+        const [{ data: homeStats, error: homeStatsError }, { data: awayStats, error: awayStatsError }] = await Promise.all([
+          supabase.rpc('get_team_home_stats'),
+          supabase.rpc('get_team_away_stats'),
+        ]);
+        if (homeStatsError) console.error('  ⚠ get_team_home_stats failed:', homeStatsError.message);
+        if (awayStatsError) console.error('  ⚠ get_team_away_stats failed:', awayStatsError.message);
+
+        const backfillRecords = [];
+        const teamsBackfill = [];
+
+        for (const t of missingTeams) {
+          const home = await computeBridgeRating(t.id, homeStats || [], 3.0);
+          const away = await computeBridgeRating(t.id, awayStats || [], 2.0);
+
+          backfillRecords.push({
+            team_id: t.id,
+            season_id: currentSeason.id,
+            gameweek_calculated: currentGW.id,
+            games_played: (home.raw?.gamesPlayed || 0) + (away.raw?.gamesPlayed || 0),
+            home_games: home.raw?.gamesPlayed || 0,
+            away_games: away.raw?.gamesPlayed || 0,
+            home_difficulty: round2(home.difficulty),
+            away_difficulty: round2(away.difficulty),
+            home_attack_rating: round2(home.attack),
+            away_attack_rating: round2(away.attack),
+            home_defense_rating: round2(home.defense),
+            away_defense_rating: round2(away.defense),
+            home_goals_scored_per_90: round2(home.raw?.goalsPer90 || 0),
+            home_goals_scored_per_90_score: home.raw ? Math.round(home.raw.goalsScore) : 5,
+            away_goals_scored_per_90: round2(away.raw?.goalsPer90 || 0),
+            away_goals_scored_per_90_score: away.raw ? Math.round(away.raw.goalsScore) : 5,
+            home_goals_conceded_per_90: round2(home.raw?.concededPer90 || 0),
+            home_goals_conceded_per_90_score: home.raw ? Math.round(home.raw.concededScore) : 5,
+            away_goals_conceded_per_90: round2(away.raw?.concededPer90 || 0),
+            away_goals_conceded_per_90_score: away.raw ? Math.round(away.raw.concededScore) : 5,
+            home_xg_per_90: round2(home.raw?.xgPer90 || 0),
+            home_xg_per_90_score: home.raw ? Math.round(home.raw.xgScore) : 5,
+            away_xg_per_90: round2(away.raw?.xgPer90 || 0),
+            away_xg_per_90_score: away.raw ? Math.round(away.raw.xgScore) : 5,
+            home_xgc_per_90: round2(home.raw?.xgcPer90 || 0),
+            home_xgc_per_90_score: home.raw ? Math.round(home.raw.xgcScore) : 5,
+            away_xgc_per_90: round2(away.raw?.xgcPer90 || 0),
+            away_xgc_per_90_score: away.raw ? Math.round(away.raw.xgcScore) : 5,
+            // Form/PPG need multi-gameweek history we don't have a per-team RPC
+            // for yet — leave at neutral until calculate_team_fdr() takes over.
+            recent_form: 0,
+            recent_form_score: 5,
+            home_ppg_recent: 0,
+            home_ppg_recent_score: 5,
+            away_ppg_recent: 0,
+            away_ppg_recent_score: 5,
+            calculation_timestamp: new Date().toISOString()
+          });
+
+          teamsBackfill.push({
+            id: t.id,
+            home_difficulty: round2(home.difficulty),
+            away_difficulty: round2(away.difficulty),
+            home_attack_rating: round2(home.attack),
+            away_attack_rating: round2(away.attack),
+            home_defense_rating: round2(home.defense),
+            away_defense_rating: round2(away.defense),
+            updated_at: new Date().toISOString()
+          });
+        }
 
         const { error: backfillError } = await supabase
           .from('team_fdr_calculations')
@@ -265,19 +358,9 @@ export default async function handler(req, res) {
         } else {
           console.log(`  ✓ Backfilled ${missingTeams.length} teams`);
 
-          // Also push the same baseline onto the teams table directly — Step 4
+          // Also push the same ratings onto the teams table directly — Step 4
           // below only updates teams present in fdrResults, so without this a
           // backfilled team's home_difficulty/away_difficulty would stay null.
-          const teamsBackfill = missingTeams.map(t => ({
-            id: t.id,
-            home_difficulty: 3.0,
-            away_difficulty: 2.0,
-            home_attack_rating: 3.0,
-            away_attack_rating: 2.0,
-            home_defense_rating: 3.0,
-            away_defense_rating: 2.0,
-            updated_at: new Date().toISOString()
-          }));
           const { error: teamsBackfillError } = await supabase
             .from('teams')
             .upsert(teamsBackfill, { onConflict: 'id' });
