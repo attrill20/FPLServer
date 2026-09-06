@@ -2,8 +2,10 @@ name: Hourly Quick Sync
 
 on:
   schedule:
-    # Run every hour at the top of the hour
-    - cron: '0 * * * *'
+    # Offset from the top of the hour — GitHub's own docs warn that :00 is
+    # peak load for scheduled workflows across all of GitHub and runs get
+    # delayed or dropped, which is why this was firing every 4-5h instead of hourly.
+    - cron: '7 * * * *'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
