@@ -13,7 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
-import { getCurrentSeason, syncTeams, getGameweekIdByRound } from '../../../lib/fplSync.js';
+import { getCurrentSeason, syncTeams, getGameweekIdByRound, selectAll } from '../../../lib/fplSync.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -65,38 +65,10 @@ export default async function handler(req, res) {
     // the stable `code` field rather than trusting the raw team id.
     const apiTeamIdToOurTeamId = await syncTeams(supabase, bootstrap);
 
-    // FPL also resets player element ids every season — match existing players
-    // by their stable `code` and keep their existing DB id; only brand-new
-    // players (transfers into the league) get a freshly assigned id.
-    const { data: dbPlayers, error: playersLoadError } = await supabase
-      .from('players')
-      .select('id, code');
-    if (playersLoadError) {
-      throw new Error(`Failed to load existing players: ${playersLoadError.message}`);
-    }
-    const dbPlayerByCode = new Map(dbPlayers.map(p => [p.code, p.id]));
-    let nextPlayerId = Math.max(...dbPlayers.map(p => p.id)) + 1;
-
-    const playerRecords = players.map(player => ({
-      id: dbPlayerByCode.get(player.code) ?? nextPlayerId++,
-      code: player.code,
-      team_id: apiTeamIdToOurTeamId.get(player.team),
-      web_name: player.web_name,
-      first_name: player.first_name,
-      second_name: player.second_name,
-      element_type: player.element_type,
-      season_id: currentSeason.id
-    }));
-
-    const { error } = await supabase
-      .from('players')
-      .upsert(playerRecords, { onConflict: 'id' });
-
-    if (error) {
-      throw new Error(`Batch upsert failed: ${error.message}`);
-    }
-
-    // Sync gameweek statuses from FPL API bootstrap events
+    // Advance the current-gameweek flag before touching the players table:
+    // this is the one signal the whole site's "live" state depends on, so it
+    // must not get skipped if the player upsert below throws for an unrelated
+    // reason (e.g. a data problem in this gameweek's transfer batch).
     const gwIdByRound = await getGameweekIdByRound(supabase, currentSeason.id);
     const apiCurrentGW = bootstrap.events.find(e => e.is_current);
     let gameweekAdvanced = null;
@@ -139,6 +111,34 @@ export default async function handler(req, res) {
             .eq('id', targetGwId);
         }
       }
+    }
+
+    // FPL also resets player element ids every season — match existing players
+    // by their stable `code` and keep their existing DB id; only brand-new
+    // players (transfers into the league) get a freshly assigned id.
+    // selectAll paginates past Supabase's 1000-row default cap, which the
+    // players table now regularly exceeds across seasons + mid-season transfers.
+    const dbPlayers = await selectAll(supabase, 'players', 'id, code');
+    const dbPlayerByCode = new Map(dbPlayers.map(p => [p.code, p.id]));
+    let nextPlayerId = Math.max(...dbPlayers.map(p => p.id)) + 1;
+
+    const playerRecords = players.map(player => ({
+      id: dbPlayerByCode.get(player.code) ?? nextPlayerId++,
+      code: player.code,
+      team_id: apiTeamIdToOurTeamId.get(player.team),
+      web_name: player.web_name,
+      first_name: player.first_name,
+      second_name: player.second_name,
+      element_type: player.element_type,
+      season_id: currentSeason.id
+    }));
+
+    const { error } = await supabase
+      .from('players')
+      .upsert(playerRecords, { onConflict: 'id' });
+
+    if (error) {
+      throw new Error(`Batch upsert failed: ${error.message}`);
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
