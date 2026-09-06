@@ -13,7 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Each endpoint called separately so they each get their own timeout window
+      # Each endpoint called separately so they each get their own timeout window.
+      # HTTP_CODE falls back to "000" if curl itself fails (timeout, connection
+      # reset, etc.) — GitHub Actions runs steps with `bash -e`, so without this
+      # a curl-level failure would abort the whole step before the retry loop
+      # below ever got a chance to run.
       - name: Sync Players
         run: |
           echo "Step 1/4: Syncing players at $(date)"
@@ -21,7 +25,7 @@ jobs:
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/sync/players \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-              --max-time 60)
+              --max-time 60) || HTTP_CODE="000"
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
@@ -45,7 +49,7 @@ jobs:
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/sync/quick-stats \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-              --max-time 60)
+              --max-time 60) || HTTP_CODE="000"
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
@@ -69,7 +73,7 @@ jobs:
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/sync/fpl-difficulty \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-              --max-time 60)
+              --max-time 60) || HTTP_CODE="000"
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
@@ -93,7 +97,7 @@ jobs:
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
               -X POST https://fpl-server-nine.vercel.app/api/fdr/calculate \
               -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-              --max-time 60)
+              --max-time 60) || HTTP_CODE="000"
             echo "Attempt $attempt - HTTP Status: $HTTP_CODE"
             cat /tmp/response.json | python3 -m json.tool 2>/dev/null || cat /tmp/response.json
             [ "$HTTP_CODE" = "200" ] && break
