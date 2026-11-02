@@ -6,6 +6,10 @@ on:
     - cron: '0 3 * * 0'
   workflow_dispatch: # Allow manual triggering
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   full-sync:
     runs-on: ubuntu-latest
@@ -29,3 +33,9 @@ jobs:
 
       - name: Log completion
         run: echo "Weekly full sync triggered at $(date)"
+
+      # Scheduled workflows get auto-disabled after 60 days of repo inactivity;
+      # this re-enables via the API (no dummy commits) to reset that timer.
+      - name: Keep workflow alive
+        if: always()
+        uses: gautamkrishnar/keepalive-workflow@v2
